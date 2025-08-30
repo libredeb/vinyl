@@ -1,0 +1,7 @@
+*~
+build/
+.flatpak-builder/
+*vinyl-*.pkg.*
+how_to_run.txt
+.vscode
+data/io.github.libredeb.vinyl.1.gz
