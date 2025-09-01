@@ -12,12 +12,19 @@ namespace Vinyl {
         private SDL.Video.Renderer renderer;
         private bool quit = false;
 
+        private SDLTTF.Font? font;
+        private SDLTTF.Font? font_bold;
+
         private Vinyl.Utils.Screen current_screen = Vinyl.Utils.Screen.MAIN;
         private float screen_offset_x = 0;
 
-        private Vinyl.Frontend.IconButton? library_button;
-        private Vinyl.Frontend.IconButton? exit_button;
-        private Vinyl.Frontend.IconButton? back_button;
+        private Vinyl.Frontend.ToolbarButton? exit_button;
+        private Vinyl.Frontend.ToolbarButton? back_button;
+
+        private Gee.ArrayList<Vinyl.Frontend.MenuButton> main_menu_buttons;
+        private int focused_button_index = 0;
+        private SDL.Input.GameController? controller;
+        private uint last_joy_move = 0; // For joystick move delay
 
         public int run (string[] args) {
             if (!this.init ()) {
@@ -40,7 +47,7 @@ namespace Vinyl {
         }
 
         private bool init () {
-            if (SDL.init (SDL.InitFlag.VIDEO) < 0) {
+            if (SDL.init (SDL.InitFlag.VIDEO | SDL.InitFlag.GAMECONTROLLER) < 0) {
                 warning ("SDL could not be initialized. Error: %s", SDL.get_error ());
                 return false;
             }
@@ -48,6 +55,34 @@ namespace Vinyl {
             if (SDLImage.init (SDLImage.InitFlags.PNG) == 0) {
                 warning ("SDL2_image could not be initialized");
                 return false;
+            }
+
+            if (SDLTTF.init () == -1) {
+                warning ("SDL2_ttf could not be initialized");
+                return false;
+            }
+
+            // Load controller mappings
+            var controller_db_path = Constants.VINYL_DATADIR + "/gamecontrollerdb.txt";
+            if (FileUtils.test (controller_db_path, FileTest.EXISTS)) {
+                SDL.Input.GameController.load_mapping_file (controller_db_path);
+            }
+
+            int num_controllers = SDL.Input.GameController.count ();
+            if (
+                (num_controllers < 1) ||
+                (!SDL.Input.GameController.is_game_controller (0))
+            ) {
+                warning (num_controllers < 1
+                    ? "No game controller detected"
+                    : "Game controller is not compatible"
+                );
+            } else {
+                controller = new SDL.Input.GameController (0);
+                if (controller == null) {
+                    warning ("Unable to open game controller: %s", SDL.get_error ());
+                    return false;
+                }
             }
 
             this.window = new SDL.Video.Window (
@@ -74,21 +109,39 @@ namespace Vinyl {
 
         private bool load_media () {
             try {
-                library_button = new Vinyl.Frontend.IconButton (
+                font = new SDLTTF.Font (Constants.FONT_PATH, 24);
+                font_bold = new SDLTTF.Font (Constants.FONT_BOLD_PATH, 38);
+
+                exit_button = new Vinyl.Frontend.ToolbarButton (
                     renderer,
-                    Constants.LIB_ICON_PATH,
-                    (SCREEN_WIDTH / 2) - 105, 300, 100, 100
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.EXIT_TB_ICON_PATH,
+                    20, 20, 80, 50 // Compact size
                 );
-                exit_button = new Vinyl.Frontend.IconButton (
+                back_button = new Vinyl.Frontend.ToolbarButton (
                     renderer,
-                    Constants.EXIT_ICON_PATH,
-                    (SCREEN_WIDTH / 2) + 5, 300, 100, 100
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.BACK_TB_ICON_PATH,
+                    20, 20, 80, 50 // Compact size
                 );
-                back_button = new Vinyl.Frontend.IconButton (
-                    renderer,
-                    Constants.BACK_ICON_PATH,
-                    50, 50, 50, 50
-                );
+
+                main_menu_buttons = new Gee.ArrayList<Vinyl.Frontend.MenuButton> ();
+                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                    renderer, Constants.LIBRARY_ICON_PATH, "Mi Música",
+                    0, 120, SCREEN_WIDTH, 120
+                ));
+                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                    renderer, Constants.RADIO_ICON_PATH, "Radio",
+                    0, 240, SCREEN_WIDTH, 120
+                ));
+                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                    renderer, Constants.SEARCH_ICON_PATH, "Buscar",
+                    0, 360, SCREEN_WIDTH, 120
+                ));
+
+                // Set focus on the first button by default
+                main_menu_buttons.get (0).focused = true;
+
             } catch (Error e) {
                 warning ("Error loading gfx: %s", e.message);
                 return false;
@@ -107,14 +160,59 @@ namespace Vinyl {
                     SDL.Input.Cursor.get_state (ref mouse_x, ref mouse_y);
 
                     if (current_screen == Vinyl.Utils.Screen.MAIN) {
-                        if (library_button.is_clicked (mouse_x, mouse_y)) {
-                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
-                        }
                         if (exit_button.is_clicked (mouse_x, mouse_y)) {
                             quit = true;
                         }
+
+                        for (var i = 0; i < main_menu_buttons.size; i++) {
+                            var button = main_menu_buttons.get(i);
+                            if (button.is_clicked (mouse_x, mouse_y)) {
+                                focused_button_index = i;
+                                stdout.printf ("Button '%s' clicked!\n", button.text);
+
+                                // Example of screen transition
+                                if (button.text == "Mi Música") {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                }
+                            }
+                        }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                        }
+                    }
+                } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {
+                    if (current_screen == Vinyl.Utils.Screen.MAIN) {
+                        uint current_time = SDL.Timer.get_ticks ();
+                        switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.DPAD_UP:
+                                if (current_time > last_joy_move + 200) {
+                                    focused_button_index--;
+                                    if (focused_button_index < 0) {
+                                        focused_button_index = main_menu_buttons.size - 1;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_DOWN:
+                                if (current_time > last_joy_move + 200) {
+                                    focused_button_index++;
+                                    if (focused_button_index >= main_menu_buttons.size) {
+                                        focused_button_index = 0;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.A:
+                                var button = main_menu_buttons.get(focused_button_index);
+                                stdout.printf ("Button '%s' activated!\n", button.text);
+                                if (button.text == "Mi Música") {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                }
+                                break;
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
+                        if (e.cbutton.button == SDL.Input.GameController.Button.B) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
                         }
                     }
@@ -136,6 +234,7 @@ namespace Vinyl {
                     current_screen = Vinyl.Utils.Screen.MAIN;
                 }
             }
+            update_focus();
         }
 
         private void render () {
@@ -144,6 +243,8 @@ namespace Vinyl {
 
             render_main_screen ((int)screen_offset_x);
             render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
+
+            render_header();
 
             renderer.set_viewport (null);
 
@@ -156,8 +257,9 @@ namespace Vinyl {
             renderer.set_draw_color (20, 20, 25, 255);
             renderer.fill_rect (null);
 
-            library_button.render (renderer);
-            exit_button.render (renderer);
+            foreach (var button in main_menu_buttons) {
+                button.render (renderer, font_bold);
+            }
         }
 
         private void render_library_screen (int x_offset) {
@@ -165,12 +267,66 @@ namespace Vinyl {
 
             renderer.set_draw_color (40, 40, 50, 255);
             renderer.fill_rect (null);
+        }
 
-            back_button.render (renderer);
+        private void render_header () {
+            // Draw header background
+            renderer.set_viewport ({0, 0, SCREEN_WIDTH, 90});
+            renderer.set_draw_color (10, 10, 12, 255);
+            renderer.fill_rect (null);
+
+            // Draw title and buttons based on screen
+            if (current_screen == Vinyl.Utils.Screen.MAIN || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
+                render_text ("vinyl", (SCREEN_WIDTH / 2) - 50, 25, true);
+                exit_button.render(renderer);
+            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY) {
+                render_text ("Mi Música", (SCREEN_WIDTH / 2) - 80, 25, true);
+                back_button.render(renderer);
+            }
+        }
+
+        private void update_focus () {
+            for (var i = 0; i < main_menu_buttons.size; i++) {
+                main_menu_buttons.get(i).focused = (i == focused_button_index);
+            }
+        }
+
+        private void render_text (string text, int x, int y, bool is_bold = false) {
+            SDL.Video.Surface text_surface;
+            if (is_bold) {
+                text_surface = font_bold.render (text, {255, 255, 255, 255});
+            } else {
+                text_surface = font.render (text, {255, 255, 255, 255});
+            }
+            var text_texture = SDL.Video.Texture.create_from_surface (renderer, text_surface);
+            int text_width = 0;
+            int text_height = 0;
+            text_texture.query (null, null, out text_width, out text_height);
+            renderer.copy (text_texture, null, {x, y, text_width, text_height});
         }
 
         private void cleanup () {
-            this.window.destroy ();
+            // Release references to all widgets and fonts.
+            // This allows the GC to call the free_functions for the textures and fonts
+            // before we call the SDL_Quit functions.
+            exit_button = null;
+            back_button = null;
+            main_menu_buttons.clear ();
+            main_menu_buttons = null;
+            font = null;
+            font_bold = null;
+
+            // Close controller
+            if (controller != null) {
+                controller = null;
+            }
+
+            // Release references to renderer and window
+            renderer = null;
+            window = null;
+
+            // Now that all SDL objects should be freed by the GC, quit the subsystems
+            SDLTTF.quit ();
             SDLImage.quit ();
             SDL.quit ();
         }

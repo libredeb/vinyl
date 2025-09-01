@@ -14,15 +14,15 @@ We created Vinyl for music lovers who want to truly connect with their music, br
    1. Install dependencies:
    * For Ubuntu:
       ```sh
-      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libtagc0-dev python3 python3-wheel python3-setuptools
+      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libtagc0-dev python3 python3-wheel python3-setuptools
       ```
    * For Fedora:
       ```sh
-      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel taglib-devel python3 python3-wheel python3-setuptools
+      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel taglib-devel python3 python3-wheel python3-setuptools
       ```
    * For Arch Linux:
       ```sh
-      sudo pacman -Sy meson ninja vala sdl2 sdl2_image taglib python python-wheel python-setuptools
+      sudo pacman -Sy meson ninja vala sdl2 sdl2_image sdl2_ttf taglib python python-wheel python-setuptools
       ```
    2. Clone this repository into your machine
       ```sh

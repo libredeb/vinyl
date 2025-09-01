@@ -34,8 +34,10 @@ config_inc_dir = include_directories('.')
 
 dependencies = [
     dependency('gio-2.0'),
+    dependency('gee-0.8'),
     dependency('sdl2', version: '>=2.26.0'),
     dependency('SDL2_image', version: '>=2.6.0'),
+    dependency('SDL2_ttf', version: '>=2.20.0'),
     dependency('taglib_c', version: '>=1.13.0')
 ]
 
@@ -55,7 +57,9 @@ sources = [
   'src/Constants.vala',
   'src/Application.vala',
   'src/Screen.vala',
-  'src/Widgets/IconButton.vala'
+  'src/Widgets/IconButton.vala',
+  'src/Widgets/MenuButton.vala',
+  'src/Widgets/ToolbarButton.vala'
 ]
 
 executable(
@@ -73,9 +77,15 @@ executable(
 
 # Install GFX icon files
 gfx_files = [
-    'back_icon.png',
-    'exit_icon.png',
-    'library_icon.png'
+    'arrow_right.png',
+    'back_tb.png',
+    'exit_tb.png',
+    'library_icon.png',
+    'play_tb.png',
+    'playlist_tb.png',
+    'radio_icon.png',
+    'search_icon.png',
+    'toolbar_button_bg.png'
 ]
 foreach gfx : gfx_files
     install_data(
@@ -83,5 +93,23 @@ foreach gfx : gfx_files
         install_dir: join_paths(datadir, PROJECT_NAME, 'gfx')
     )
 endforeach
+
+# Install font files
+font_files = [
+    'FreeSans.ttf',
+    'FreeSansBold.ttf'
+]
+foreach font : font_files
+    install_data(
+        join_paths('data', 'fonts', font),
+        install_dir: join_paths(datadir, PROJECT_NAME, 'fonts')
+    )
+endforeach
+
+# Install the gamecontrollerdb.txt file
+install_data(
+    join_paths('data', 'gamecontrollerdb.txt'),
+    install_dir: join_paths(datadir, PROJECT_NAME)
+)
 
 meson.add_install_script('post_install.py')
