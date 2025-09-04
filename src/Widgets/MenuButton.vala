@@ -4,7 +4,7 @@
  */
 
 namespace Vinyl.Frontend {
-    public class MenuButton {
+    public class MenuButton : GLib.Object {
         private SDL.Video.Texture icon_texture;
         private SDL.Video.Texture arrow_texture;
         private SDL.Video.Rect button_rect;
@@ -37,8 +37,10 @@ namespace Vinyl.Frontend {
         public void render (SDL.Video.Renderer renderer, SDLTTF.Font font) {
             if (focused) {
                 renderer.set_draw_color (40, 40, 50, 255); // Highlight color
-                renderer.fill_rect (this.button_rect);
+            } else {
+                renderer.set_draw_color (20, 20, 25, 255); // Default background color
             }
+            renderer.fill_rect (this.button_rect);
 
             // Render icon
             var icon_h = (int)(this.button_rect.h * 0.6);

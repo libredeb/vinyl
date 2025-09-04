@@ -59,7 +59,11 @@ sources = [
   'src/Screen.vala',
   'src/Widgets/IconButton.vala',
   'src/Widgets/MenuButton.vala',
-  'src/Widgets/ToolbarButton.vala'
+  'src/Widgets/ToolbarButton.vala',
+  'src/Widgets/Track.vala',
+  'src/Widgets/TrackList.vala',
+  'src/Library/Track.vala',
+  'src/Library/MusicScanner.vala'
 ]
 
 executable(
@@ -85,7 +89,8 @@ gfx_files = [
     'playlist_tb.png',
     'radio_icon.png',
     'search_icon.png',
-    'toolbar_button_bg.png'
+    'toolbar_button_bg.png',
+    'default_cover.png'
 ]
 foreach gfx : gfx_files
     install_data(

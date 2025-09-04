@@ -3,10 +3,11 @@
  * SPDX-FileCopyrightText: 2024 Juan Pablo Lozano <libredeb@gmail.com>
  */
 namespace Vinyl.Frontend {
-    public class ToolbarButton {
+    public class ToolbarButton : GLib.Object {
         private SDL.Video.Rect rect;
         private SDL.Video.Texture bg_texture;
         private SDL.Video.Texture icon_texture;
+        public bool focused = false;
 
         public ToolbarButton (
             SDL.Video.Renderer renderer,
@@ -41,6 +42,11 @@ namespace Vinyl.Frontend {
         public void render (SDL.Video.Renderer renderer) {
             // Render background
             renderer.copy (this.bg_texture, null, this.rect);
+
+            if (focused) {
+                renderer.set_draw_color (40, 40, 50, 255); // Highlight color
+                renderer.fill_rect (this.rect);
+            }
 
             // Render icon centered
             int icon_w, icon_h;

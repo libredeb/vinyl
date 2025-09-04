@@ -14,6 +14,7 @@ namespace Vinyl {
 
         private SDLTTF.Font? font;
         private SDLTTF.Font? font_bold;
+        private SDLTTF.Font? font_small;
 
         private Vinyl.Utils.Screen current_screen = Vinyl.Utils.Screen.MAIN;
         private float screen_offset_x = 0;
@@ -22,9 +23,13 @@ namespace Vinyl {
         private Vinyl.Frontend.ToolbarButton? back_button;
 
         private Gee.ArrayList<Vinyl.Frontend.MenuButton> main_menu_buttons;
-        private int focused_button_index = 0;
+        private Gee.ArrayList<Object> focusable_widgets;
+        private int focused_widget_index = 0;
         private SDL.Input.GameController? controller;
         private uint last_joy_move = 0; // For joystick move delay
+        private bool is_track_list_focused = false;
+
+        private Vinyl.Widgets.TrackList? track_list_widget;
 
         public int run (string[] args) {
             if (!this.init ()) {
@@ -33,6 +38,25 @@ namespace Vinyl {
 
             if (!this.load_media ()) {
                 return 1;
+            }
+
+            Gee.ArrayList<Vinyl.Library.Track> tracks = null;
+            var loop = new MainLoop ();
+
+            var music_scanner = new Vinyl.Library.MusicScanner ();
+            music_scanner.scan_files.begin ((obj, res) => {
+                tracks = music_scanner.scan_files.end (res);
+                loop.quit ();
+            });
+
+            loop.run ();
+
+            if (tracks != null) {
+                track_list_widget = new Vinyl.Widgets.TrackList (
+                    renderer,
+                    tracks,
+                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                );
             }
 
             while (!this.quit) {
@@ -111,6 +135,7 @@ namespace Vinyl {
             try {
                 font = new SDLTTF.Font (Constants.FONT_PATH, 24);
                 font_bold = new SDLTTF.Font (Constants.FONT_BOLD_PATH, 38);
+                font_small = new SDLTTF.Font (Constants.FONT_PATH, 18);
 
                 exit_button = new Vinyl.Frontend.ToolbarButton (
                     renderer,
@@ -140,7 +165,10 @@ namespace Vinyl {
                 ));
 
                 // Set focus on the first button by default
-                main_menu_buttons.get (0).focused = true;
+                focusable_widgets = new Gee.ArrayList<Object> ();
+                focusable_widgets.add (exit_button);
+                focusable_widgets.add_all (main_menu_buttons);
+                focused_widget_index = 1;
 
             } catch (Error e) {
                 warning ("Error loading gfx: %s", e.message);
@@ -167,7 +195,7 @@ namespace Vinyl {
                         for (var i = 0; i < main_menu_buttons.size; i++) {
                             var button = main_menu_buttons.get(i);
                             if (button.is_clicked (mouse_x, mouse_y)) {
-                                focused_button_index = i;
+                                focused_widget_index = focusable_widgets.index_of (button);
                                 stdout.printf ("Button '%s' clicked!\n", button.text);
 
                                 // Example of screen transition
@@ -187,33 +215,96 @@ namespace Vinyl {
                         switch (e.cbutton.button) {
                             case SDL.Input.GameController.Button.DPAD_UP:
                                 if (current_time > last_joy_move + 200) {
-                                    focused_button_index--;
-                                    if (focused_button_index < 0) {
-                                        focused_button_index = main_menu_buttons.size - 1;
+                                    focused_widget_index--;
+                                    if (focused_widget_index < 0) {
+                                        focused_widget_index = focusable_widgets.size - 1;
                                     }
                                     last_joy_move = current_time;
                                 }
                                 break;
                             case SDL.Input.GameController.Button.DPAD_DOWN:
                                 if (current_time > last_joy_move + 200) {
-                                    focused_button_index++;
-                                    if (focused_button_index >= main_menu_buttons.size) {
-                                        focused_button_index = 0;
+                                    focused_widget_index++;
+                                    if (focused_widget_index >= focusable_widgets.size) {
+                                        focused_widget_index = 0;
                                     }
                                     last_joy_move = current_time;
                                 }
                                 break;
-                            case SDL.Input.GameController.Button.A:
-                                var button = main_menu_buttons.get(focused_button_index);
-                                stdout.printf ("Button '%s' activated!\n", button.text);
-                                if (button.text == "Mi Música") {
-                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                            case SDL.Input.GameController.Button.B:
+                                var widget = focusable_widgets.get(focused_widget_index);
+                                if (widget is Vinyl.Frontend.MenuButton) {
+                                    var button = (Vinyl.Frontend.MenuButton) widget;
+                                    stdout.printf ("Button '%s' activated!\n", button.text);
+                                    if (button.text == "Mi Música") {
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                    }
+                                } else if (widget is Vinyl.Frontend.ToolbarButton) {
+                                    var button = (Vinyl.Frontend.ToolbarButton) widget;
+                                    if (button == exit_button) {
+                                        quit = true;
+                                    }
                                 }
                                 break;
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
-                        if (e.cbutton.button == SDL.Input.GameController.Button.B) {
-                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                        switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.A:
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                                break;
+                            case SDL.Input.GameController.Button.B:
+                                if (back_button.focused) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                                }
+                                break;
+                        }
+                    }
+                } else if (e.type == SDL.EventType.CONTROLLERAXISMOTION) {
+                    uint current_time = SDL.Timer.get_ticks ();
+                    if (current_screen == Vinyl.Utils.Screen.MAIN) {
+                        // Vertical axis motion
+                        if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
+                            if (e.caxis.value < -8000) { // Up
+                                if (current_time > last_joy_move + 200) {
+                                    focused_widget_index--;
+                                    if (focused_widget_index < 0) {
+                                        focused_widget_index = focusable_widgets.size - 1;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            } else if (e.caxis.value > 8000) { // Down
+                                if (current_time > last_joy_move + 200) {
+                                    focused_widget_index++;
+                                    if (focused_widget_index >= focusable_widgets.size) {
+                                        focused_widget_index = 0;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            }
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
+                        if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
+                            if (e.caxis.value < -8000) { // Up
+                                if (current_time > last_joy_move + 200) {
+                                    if (is_track_list_focused) {
+                                        if (track_list_widget.focused_index == 0) {
+                                            is_track_list_focused = false;
+                                        } else {
+                                            track_list_widget.scroll_up ();
+                                        }
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            } else if (e.caxis.value > 8000) { // Down
+                                if (current_time > last_joy_move + 200) {
+                                    if (is_track_list_focused) {
+                                        track_list_widget.scroll_down ();
+                                    } else {
+                                        is_track_list_focused = true;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            }
                         }
                     }
                 }
@@ -263,10 +354,15 @@ namespace Vinyl {
         }
 
         private void render_library_screen (int x_offset) {
-            renderer.set_viewport ({x_offset, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+            var viewport = SDL.Video.Rect () { x = x_offset, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT };
+            renderer.set_viewport (viewport);
 
             renderer.set_draw_color (40, 40, 50, 255);
             renderer.fill_rect (null);
+
+            if (track_list_widget != null) {
+                track_list_widget.render (renderer, font, font_small);
+            }
         }
 
         private void render_header () {
@@ -286,8 +382,36 @@ namespace Vinyl {
         }
 
         private void update_focus () {
-            for (var i = 0; i < main_menu_buttons.size; i++) {
-                main_menu_buttons.get(i).focused = (i == focused_button_index);
+            if (current_screen == Vinyl.Utils.Screen.MAIN) {
+                for (var i = 0; i < focusable_widgets.size; i++) {
+                    var widget = focusable_widgets.get(i);
+                    bool is_focused = (i == focused_widget_index);
+
+                    if (widget is Vinyl.Frontend.MenuButton) {
+                        ((Vinyl.Frontend.MenuButton) widget).focused = is_focused;
+                    } else if (widget is Vinyl.Frontend.ToolbarButton) {
+                        ((Vinyl.Frontend.ToolbarButton) widget).focused = is_focused;
+                    }
+                }
+                if (back_button != null) {
+                    back_button.focused = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
+                // Unfocus all main screen widgets
+                foreach (var widget in focusable_widgets) {
+                    if (widget is Vinyl.Frontend.MenuButton) {
+                        ((Vinyl.Frontend.MenuButton) widget).focused = false;
+                    } else if (widget is Vinyl.Frontend.ToolbarButton) {
+                        ((Vinyl.Frontend.ToolbarButton) widget).focused = false;
+                    }
+                }
+                
+                if (back_button != null) {
+                    back_button.focused = !is_track_list_focused;
+                }
+                if (track_list_widget != null) {
+                    track_list_widget.is_focused = is_track_list_focused;
+                }
             }
         }
 
@@ -313,8 +437,11 @@ namespace Vinyl {
             back_button = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
+            focusable_widgets.clear();
+            focusable_widgets = null;
             font = null;
             font_bold = null;
+            font_small = null;
 
             // Close controller
             if (controller != null) {

@@ -15,6 +15,7 @@ namespace Constants {
     public const string BACK_TB_ICON_PATH = VINYL_DATADIR + "/gfx/back_tb.png";
     public const string EXIT_TB_ICON_PATH = VINYL_DATADIR + "/gfx/exit_tb.png";
     public const string TOOLBAR_BUTTON_BG_PATH = VINYL_DATADIR + "/gfx/toolbar_button_bg.png";
+    public const string DEFAULT_COVER_ICON_PATH = VINYL_DATADIR + "/gfx/default_cover.png";
     public const string FONT_PATH = VINYL_DATADIR + "/fonts/FreeSans.ttf";
     public const string FONT_BOLD_PATH = VINYL_DATADIR + "/fonts/FreeSansBold.ttf";
 }
