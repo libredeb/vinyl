@@ -29,7 +29,7 @@ namespace Vinyl {
         private uint last_joy_move = 0; // For joystick move delay
         private bool is_track_list_focused = false;
 
-        private Vinyl.Widgets.TrackList? track_list_widget;
+        private Vinyl.Widgets.TrackList? track_list;
 
         public int run (string[] args) {
             if (!this.init ()) {
@@ -52,7 +52,7 @@ namespace Vinyl {
             loop.run ();
 
             if (tracks != null) {
-                track_list_widget = new Vinyl.Widgets.TrackList (
+                track_list = new Vinyl.Widgets.TrackList (
                     renderer,
                     tracks,
                     0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
@@ -193,7 +193,7 @@ namespace Vinyl {
                         }
 
                         for (var i = 0; i < main_menu_buttons.size; i++) {
-                            var button = main_menu_buttons.get(i);
+                            var button = main_menu_buttons.get (i);
                             if (button.is_clicked (mouse_x, mouse_y)) {
                                 focused_widget_index = focusable_widgets.index_of (button);
                                 stdout.printf ("Button '%s' clicked!\n", button.text);
@@ -232,7 +232,7 @@ namespace Vinyl {
                                 }
                                 break;
                             case SDL.Input.GameController.Button.B:
-                                var widget = focusable_widgets.get(focused_widget_index);
+                                var widget = focusable_widgets.get (focused_widget_index);
                                 if (widget is Vinyl.Frontend.MenuButton) {
                                     var button = (Vinyl.Frontend.MenuButton) widget;
                                     stdout.printf ("Button '%s' activated!\n", button.text);
@@ -287,10 +287,10 @@ namespace Vinyl {
                             if (e.caxis.value < -8000) { // Up
                                 if (current_time > last_joy_move + 200) {
                                     if (is_track_list_focused) {
-                                        if (track_list_widget.focused_index == 0) {
+                                        if (track_list.focused_index == 0) {
                                             is_track_list_focused = false;
                                         } else {
-                                            track_list_widget.scroll_up ();
+                                            track_list.scroll_up ();
                                         }
                                     }
                                     last_joy_move = current_time;
@@ -298,7 +298,7 @@ namespace Vinyl {
                             } else if (e.caxis.value > 8000) { // Down
                                 if (current_time > last_joy_move + 200) {
                                     if (is_track_list_focused) {
-                                        track_list_widget.scroll_down ();
+                                        track_list.scroll_down ();
                                     } else {
                                         is_track_list_focused = true;
                                     }
@@ -325,7 +325,7 @@ namespace Vinyl {
                     current_screen = Vinyl.Utils.Screen.MAIN;
                 }
             }
-            update_focus();
+            update_focus ();
         }
 
         private void render () {
@@ -335,7 +335,7 @@ namespace Vinyl {
             render_main_screen ((int)screen_offset_x);
             render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
 
-            render_header();
+            render_header ();
 
             renderer.set_viewport (null);
 
@@ -360,8 +360,8 @@ namespace Vinyl {
             renderer.set_draw_color (40, 40, 50, 255);
             renderer.fill_rect (null);
 
-            if (track_list_widget != null) {
-                track_list_widget.render (renderer, font, font_small);
+            if (track_list != null) {
+                track_list.render (renderer, font, font_small);
             }
         }
 
@@ -374,17 +374,20 @@ namespace Vinyl {
             // Draw title and buttons based on screen
             if (current_screen == Vinyl.Utils.Screen.MAIN || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
                 render_text ("vinyl", (SCREEN_WIDTH / 2) - 50, 25, true);
-                exit_button.render(renderer);
-            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY) {
+                exit_button.render (renderer);
+            } else if (
+                current_screen == Vinyl.Utils.Screen.LIBRARY ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY
+            ) {
                 render_text ("Mi Música", (SCREEN_WIDTH / 2) - 80, 25, true);
-                back_button.render(renderer);
+                back_button.render (renderer);
             }
         }
 
         private void update_focus () {
             if (current_screen == Vinyl.Utils.Screen.MAIN) {
                 for (var i = 0; i < focusable_widgets.size; i++) {
-                    var widget = focusable_widgets.get(i);
+                    var widget = focusable_widgets.get (i);
                     bool is_focused = (i == focused_widget_index);
 
                     if (widget is Vinyl.Frontend.MenuButton) {
@@ -405,12 +408,12 @@ namespace Vinyl {
                         ((Vinyl.Frontend.ToolbarButton) widget).focused = false;
                     }
                 }
-                
+
                 if (back_button != null) {
                     back_button.focused = !is_track_list_focused;
                 }
-                if (track_list_widget != null) {
-                    track_list_widget.is_focused = is_track_list_focused;
+                if (track_list != null) {
+                    track_list.is_focused = is_track_list_focused;
                 }
             }
         }
@@ -437,7 +440,7 @@ namespace Vinyl {
             back_button = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
-            focusable_widgets.clear();
+            focusable_widgets.clear ();
             focusable_widgets = null;
             font = null;
             font_bold = null;

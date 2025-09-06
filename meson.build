@@ -56,7 +56,7 @@ sources = [
   'src/Main.vala',
   'src/Constants.vala',
   'src/Application.vala',
-  'src/Screen.vala',
+  'src/Utils/Screen.vala',
   'src/Widgets/IconButton.vala',
   'src/Widgets/MenuButton.vala',
   'src/Widgets/ToolbarButton.vala',

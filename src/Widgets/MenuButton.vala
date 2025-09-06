@@ -11,7 +11,12 @@ namespace Vinyl.Frontend {
         public string text;
         public bool focused = false;
 
-        public MenuButton (SDL.Video.Renderer renderer, string icon_path, string text, int x, int y, int w, int h) throws IOError {
+        public MenuButton (
+            SDL.Video.Renderer renderer,
+            string icon_path,
+            string text,
+            int x, int y, int w, int h
+        ) throws IOError {
             this.text = text;
             this.button_rect = { x, y, w, h };
 

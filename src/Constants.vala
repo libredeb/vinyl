@@ -18,4 +18,7 @@ namespace Constants {
     public const string DEFAULT_COVER_ICON_PATH = VINYL_DATADIR + "/gfx/default_cover.png";
     public const string FONT_PATH = VINYL_DATADIR + "/fonts/FreeSans.ttf";
     public const string FONT_BOLD_PATH = VINYL_DATADIR + "/fonts/FreeSansBold.ttf";
+    public const string[] SUPPORTED_FORMATS = {
+        ".mp3", ".flac", ".ogg", ".wav"
+    };
 }

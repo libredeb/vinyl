@@ -21,7 +21,7 @@ namespace Vinyl.Widgets {
                     warning ("Could not load album art: %s", SDL.get_error ());
                 }
             }
-            
+
             if (surface == null) { // If album art failed or didn't exist, load default
                 surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
                 if (surface == null) {

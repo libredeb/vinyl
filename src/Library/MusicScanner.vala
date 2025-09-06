@@ -52,8 +52,13 @@ namespace Vinyl.Library {
                         if (info.get_file_type () == FileType.DIRECTORY) {
                             // For simplicity, this first version won't recurse into subdirectories.
                             // We can add recursion later.
-                        } else if (file_path != null && (file_path.has_suffix (".mp3") || file_path.has_suffix (".flac"))) {
-                            process_file (file_path);
+                        } else if (file_path != null) {
+                            foreach (string format in Constants.SUPPORTED_FORMATS) {
+                                if (file_path.has_suffix (format)) {
+                                    process_file (file_path);
+                                    break;
+                                }
+                            }
                         }
                     }
                 }
@@ -100,13 +105,17 @@ namespace Vinyl.Library {
                 );
                 proc.wait (null); // Synchronous call for simplicity
 
-                if (proc.get_if_exited () && proc.get_exit_status () == 0 && FileUtils.test(cover_path, FileTest.EXISTS)) {
+                if (
+                    proc.get_if_exited () &&
+                    proc.get_exit_status () == 0 &&
+                    FileUtils.test (cover_path, FileTest.EXISTS)
+                ) {
                     return cover_path;
                 }
             } catch (Error e) {
                 warning ("ffmpeg command failed for '%s': %s", file_path, e.message);
             }
-            
+
             return null;
         }
     }
