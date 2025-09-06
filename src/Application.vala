@@ -152,15 +152,15 @@ namespace Vinyl {
 
                 main_menu_buttons = new Gee.ArrayList<Vinyl.Frontend.MenuButton> ();
                 main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
-                    renderer, Constants.LIBRARY_ICON_PATH, "Mi Música",
+                    renderer, Constants.LIBRARY_ICON_PATH, "music", "My Music",
                     0, 120, SCREEN_WIDTH, 120
                 ));
                 main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
-                    renderer, Constants.RADIO_ICON_PATH, "Radio",
+                    renderer, Constants.RADIO_ICON_PATH, "radio", "Radio",
                     0, 240, SCREEN_WIDTH, 120
                 ));
                 main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
-                    renderer, Constants.SEARCH_ICON_PATH, "Buscar",
+                    renderer, Constants.SEARCH_ICON_PATH, "search", "Search",
                     0, 360, SCREEN_WIDTH, 120
                 ));
 
@@ -199,7 +199,7 @@ namespace Vinyl {
                                 stdout.printf ("Button '%s' clicked!\n", button.text);
 
                                 // Example of screen transition
-                                if (button.text == "Mi Música") {
+                                if (button.id == "music") {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
                                 }
                             }
@@ -236,7 +236,7 @@ namespace Vinyl {
                                 if (widget is Vinyl.Frontend.MenuButton) {
                                     var button = (Vinyl.Frontend.MenuButton) widget;
                                     stdout.printf ("Button '%s' activated!\n", button.text);
-                                    if (button.text == "Mi Música") {
+                                    if (button.id == "music") {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
                                     }
                                 } else if (widget is Vinyl.Frontend.ToolbarButton) {
@@ -379,7 +379,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.LIBRARY ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY
             ) {
-                render_text ("Mi Música", (SCREEN_WIDTH / 2) - 80, 25, true);
+                render_text ("My Music", (SCREEN_WIDTH / 2) - 80, 25, true);
                 back_button.render (renderer);
             }
         }

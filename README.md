@@ -9,6 +9,8 @@ A desktop music player that provides a beautiful, fullscreen interface to your m
 
 We created Vinyl for music lovers who want to truly connect with their music, bringing back the intentionality of listening to a record.
 
+![screenshot](./data/screenshot.png)
+
 ## Compilation
 
    1. Install dependencies:

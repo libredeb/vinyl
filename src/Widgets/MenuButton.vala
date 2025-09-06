@@ -8,15 +8,18 @@ namespace Vinyl.Frontend {
         private SDL.Video.Texture icon_texture;
         private SDL.Video.Texture arrow_texture;
         private SDL.Video.Rect button_rect;
+        public string id;
         public string text;
         public bool focused = false;
 
         public MenuButton (
             SDL.Video.Renderer renderer,
             string icon_path,
+            string id,
             string text,
             int x, int y, int w, int h
         ) throws IOError {
+            this.id = id;
             this.text = text;
             this.button_rect = { x, y, w, h };
 
