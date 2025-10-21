@@ -90,6 +90,7 @@ gfx_files = [
     'radio_icon.png',
     'search_icon.png',
     'toolbar_button_bg.png',
+    'toolbar_button_bg_press.png',
     'default_cover.png'
 ]
 foreach gfx : gfx_files

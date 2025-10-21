@@ -6,12 +6,14 @@ namespace Vinyl.Frontend {
     public class ToolbarButton : GLib.Object {
         private SDL.Video.Rect rect;
         private SDL.Video.Texture bg_texture;
+        private SDL.Video.Texture bg_texture_press;
         private SDL.Video.Texture icon_texture;
         public bool focused = false;
 
         public ToolbarButton (
             SDL.Video.Renderer renderer,
             string bg_path,
+            string bg_press_path,
             string icon_path,
             int x, int y,
             int w, int h
@@ -28,6 +30,16 @@ namespace Vinyl.Frontend {
                 throw new IOError.FAILED (SDL.get_error ());
             }
 
+            // Load background texture for pressed state
+            var bg_press_surface = SDLImage.load (bg_press_path);
+            if (bg_press_surface == null) {
+                throw new IOError.FAILED (SDL.get_error ());
+            }
+            this.bg_texture_press = SDL.Video.Texture.create_from_surface (renderer, bg_press_surface);
+            if (this.bg_texture_press == null) {
+                throw new IOError.FAILED (SDL.get_error ());
+            }
+
             // Load icon texture
             var icon_surface = SDLImage.load (icon_path);
             if (icon_surface == null) {
@@ -41,11 +53,10 @@ namespace Vinyl.Frontend {
 
         public void render (SDL.Video.Renderer renderer) {
             // Render background
-            renderer.copy (this.bg_texture, null, this.rect);
-
             if (focused) {
-                renderer.set_draw_color (40, 40, 50, 255); // Highlight color
-                renderer.fill_rect (this.rect);
+                renderer.copy (this.bg_texture_press, null, this.rect);
+            } else {
+                renderer.copy (this.bg_texture, null, this.rect);
             }
 
             // Render icon centered

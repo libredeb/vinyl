@@ -140,12 +140,14 @@ namespace Vinyl {
                 exit_button = new Vinyl.Frontend.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
                     Constants.EXIT_TB_ICON_PATH,
                     20, 20, 80, 50 // Compact size
                 );
                 back_button = new Vinyl.Frontend.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
                     Constants.BACK_TB_ICON_PATH,
                     20, 20, 80, 50 // Compact size
                 );
