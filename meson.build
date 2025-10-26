@@ -35,6 +35,10 @@ config_inc_dir = include_directories('.')
 dependencies = [
     dependency('gio-2.0'),
     dependency('gee-0.8'),
+    dependency('gstreamer-1.0'),
+    dependency('gstreamer-pbutils-1.0'),
+    dependency('gstreamer-tag-1.0'),
+    dependency('gdk-pixbuf-2.0'),
     dependency('sdl2', version: '>=2.26.0'),
     dependency('SDL2_image', version: '>=2.6.0'),
     dependency('SDL2_ttf', version: '>=2.20.0'),

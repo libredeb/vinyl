@@ -32,6 +32,7 @@ namespace Vinyl {
         private Vinyl.Widgets.TrackList? track_list;
 
         public int run (string[] args) {
+            Gst.init (ref args);
             if (!this.init ()) {
                 return 1;
             }

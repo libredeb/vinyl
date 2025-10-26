@@ -98,25 +98,72 @@ namespace Vinyl.Library {
             }
 
             try {
-                // Use ffmpeg to extract the cover. The -y flag overwrites the output file if it exists.
-                var proc = new Subprocess.newv (
-                    new string[] {"ffmpeg", "-i", file_path, "-an", "-vcodec", "copy", "-y", cover_path},
-                    SubprocessFlags.STDOUT_SILENCE | SubprocessFlags.STDERR_SILENCE
-                );
-                proc.wait (null); // Synchronous call for simplicity
-
-                if (
-                    proc.get_if_exited () &&
-                    proc.get_exit_status () == 0 &&
-                    FileUtils.test (cover_path, FileTest.EXISTS)
-                ) {
-                    return cover_path;
+                var discoverer = new Gst.PbUtils.Discoverer ((Gst.ClockTime) (5 * Gst.SECOND));
+                var info = discoverer.discover_uri ("file://" + file_path);
+                unowned Gst.TagList? tag_list = info.get_tags ();
+                if (tag_list != null) {
+                    var sample = get_cover_sample (tag_list);
+                    if (sample != null) {
+                        var buffer = sample.get_buffer ();
+                        if (buffer != null) {
+                            var pixbuf = get_pixbuf_from_buffer (buffer);
+                            if (pixbuf != null) {
+                                pixbuf.savev (cover_path, "jpeg", new string[]{"quality"}, new string[]{"100"});
+                                if (FileUtils.test (cover_path, FileTest.EXISTS)) {
+                                    return cover_path;
+                                }
+                            }
+                        }
+                    }
                 }
             } catch (Error e) {
-                warning ("ffmpeg command failed for '%s': %s", file_path, e.message);
+                warning ("GStreamer discoverer failed for '%s': %s", file_path, e.message);
             }
 
             return null;
+        }
+
+        private Gst.Sample? get_cover_sample (Gst.TagList tag_list) {
+            Gst.Sample? cover_sample = null;
+            Gst.Sample sample;
+            for (int i = 0; tag_list.get_sample_index (Gst.Tags.IMAGE, i, out sample); i++) {
+                var caps = sample.get_caps ();
+                unowned Gst.Structure caps_struct = caps.get_structure (0);
+                int image_type = Gst.Tag.ImageType.UNDEFINED;
+                caps_struct.get_enum ("image-type", typeof (Gst.Tag.ImageType), out image_type);
+                if (image_type == Gst.Tag.ImageType.UNDEFINED && cover_sample == null) {
+                    cover_sample = sample;
+                } else if (image_type == Gst.Tag.ImageType.FRONT_COVER) {
+                    return sample;
+                }
+            }
+
+            return cover_sample;
+        }
+
+        private Gdk.Pixbuf? get_pixbuf_from_buffer (Gst.Buffer buffer) {
+            Gst.MapInfo map_info;
+
+            if (!buffer.map (out map_info, Gst.MapFlags.READ)) {
+                warning ("Could not map memory buffer");
+                return null;
+            }
+
+            Gdk.Pixbuf pix = null;
+
+            try {
+                var loader = new Gdk.PixbufLoader ();
+
+                if (loader.write (map_info.data) && loader.close ()) {
+                    pix = loader.get_pixbuf ();
+                }
+            } catch (Error err) {
+                warning ("Error processing image data: %s", err.message);
+            }
+
+            buffer.unmap (map_info);
+
+            return pix;
         }
     }
 }
