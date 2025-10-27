@@ -21,6 +21,7 @@ namespace Vinyl {
 
         private Vinyl.Frontend.ToolbarButton? exit_button;
         private Vinyl.Frontend.ToolbarButton? back_button;
+        private Vinyl.Frontend.ToolbarButton? playlist_button;
 
         private Gee.ArrayList<Vinyl.Frontend.MenuButton> main_menu_buttons;
         private Gee.ArrayList<Object> focusable_widgets;
@@ -30,6 +31,7 @@ namespace Vinyl {
         private bool is_track_list_focused = false;
 
         private Vinyl.Widgets.TrackList? track_list;
+        private Vinyl.Widgets.NowPlaying? now_playing_widget;
 
         public int run (string[] args) {
             Gst.init (ref args);
@@ -153,6 +155,14 @@ namespace Vinyl {
                     20, 20, 80, 50 // Compact size
                 );
 
+                playlist_button = new Vinyl.Frontend.ToolbarButton (
+                    renderer,
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
+                    Constants.PLAYLIST_TB_ICON_PATH,
+                    SCREEN_WIDTH - 100, 20, 80, 50
+                );
+
                 main_menu_buttons = new Gee.ArrayList<Vinyl.Frontend.MenuButton> ();
                 main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
                     renderer, Constants.LIBRARY_ICON_PATH, "music", "My Music",
@@ -211,6 +221,24 @@ namespace Vinyl {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
                         }
+                        Vinyl.Library.Track? track = null;
+                        if (track_list != null && track_list.is_clicked (mouse_x, mouse_y, out track)) {
+                            if (track != null) {
+                                now_playing_widget = new Vinyl.Widgets.NowPlaying (
+                                    renderer,
+                                    track,
+                                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                                );
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                            }
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                        if (back_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
+                        }
+                        if (playlist_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
+                        }
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {
                     if (current_screen == Vinyl.Utils.Screen.MAIN) {
@@ -253,12 +281,30 @@ namespace Vinyl {
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
                         switch (e.cbutton.button) {
                             case SDL.Input.GameController.Button.A:
-                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                                if (is_track_list_focused && track_list != null) {
+                                    var track = track_list.get_focused_track ();
+                                    if (track != null) {
+                                        now_playing_widget = new Vinyl.Widgets.NowPlaying (
+                                            renderer,
+                                            track,
+                                            0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                                        );
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                    }
+                                } else {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                                }
                                 break;
                             case SDL.Input.GameController.Button.B:
                                 if (back_button.focused) {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
                                 }
+                                break;
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                        switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.B:
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
                                 break;
                         }
                     }
@@ -327,6 +373,26 @@ namespace Vinyl {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                 }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING) {
+                screen_offset_x -= TRANSITION_SPEED / 60.0f; // Move to the left
+                if (screen_offset_x <= -SCREEN_WIDTH * 2) {
+                    screen_offset_x = -SCREEN_WIDTH * 2;
+                    current_screen = Vinyl.Utils.Screen.NOW_PLAYING;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
+                if (screen_offset_x >= -SCREEN_WIDTH) {
+                    screen_offset_x = -SCREEN_WIDTH;
+                    current_screen = Vinyl.Utils.Screen.LIBRARY;
+                    now_playing_widget = null;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
+                if (screen_offset_x >= 0) {
+                    screen_offset_x = 0;
+                    current_screen = Vinyl.Utils.Screen.MAIN;
+                    now_playing_widget = null;
+                }
             }
             update_focus ();
         }
@@ -337,6 +403,7 @@ namespace Vinyl {
 
             render_main_screen ((int)screen_offset_x);
             render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
+            render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
 
             render_header ();
 
@@ -368,6 +435,18 @@ namespace Vinyl {
             }
         }
 
+        private void render_now_playing_screen (int x_offset) {
+            var viewport = SDL.Video.Rect () { x = x_offset, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT };
+            renderer.set_viewport (viewport);
+
+            renderer.set_draw_color (30, 30, 35, 255);
+            renderer.fill_rect (null);
+
+            if (now_playing_widget != null) {
+                now_playing_widget.render (renderer, font, font_bold, font_small);
+            }
+        }
+
         private void render_header () {
             // Draw header background
             renderer.set_viewport ({0, 0, SCREEN_WIDTH, 90});
@@ -384,6 +463,17 @@ namespace Vinyl {
             ) {
                 render_text ("My Music", (SCREEN_WIDTH / 2) - 80, 25, true);
                 back_button.render (renderer);
+            } else if (
+                current_screen == Vinyl.Utils.Screen.NOW_PLAYING ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY
+            ) {
+                if (track_list != null) {
+                    var text = "Now Playing • %d of %d".printf (track_list.focused_index + 1, track_list.get_total_items ());
+                    render_text (text, (SCREEN_WIDTH / 2) - 150, 25, true);
+                }
+                back_button.render (renderer);
+                playlist_button.render (renderer);
             }
         }
 

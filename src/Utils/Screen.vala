@@ -6,7 +6,11 @@ namespace Vinyl.Utils {
     public enum Screen {
         MAIN,
         LIBRARY,
+        NOW_PLAYING,
         TRANSITION_TO_LIBRARY,
-        TRANSITION_TO_MAIN
+        TRANSITION_TO_MAIN,
+        TRANSITION_TO_NOW_PLAYING,
+        TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY,
+        TRANSITION_FROM_NOW_PLAYING_TO_MAIN
     }
 }

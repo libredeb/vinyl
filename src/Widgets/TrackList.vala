@@ -52,6 +52,28 @@ namespace Vinyl.Widgets {
             }
         }
 
+        public bool is_clicked (int mouse_x, int mouse_y, out Vinyl.Library.Track track) {
+            for (int i = top_index; i < top_index + visible_items && i < track_widgets.size; i++) {
+                var widget = track_widgets.get (i);
+                if (
+                    mouse_x >= widget.rect.x && mouse_x <= widget.rect.x + widget.rect.w &&
+                    mouse_y >= widget.rect.y && mouse_y <= widget.rect.y + widget.rect.h
+                ) {
+                    track = widget.track;
+                    return true;
+                }
+            }
+            track = null;
+            return false;
+        }
+
+        public Vinyl.Library.Track? get_focused_track () {
+            if (focused_index >= 0 && focused_index < track_widgets.size) {
+                return track_widgets.get (focused_index).track;
+            }
+            return null;
+        }
+
         public int get_total_items () {
             return track_widgets.size;
         }

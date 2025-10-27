@@ -5,7 +5,7 @@
 
 namespace Vinyl.Widgets {
     public class Track : GLib.Object {
-        private Vinyl.Library.Track track;
+        public Vinyl.Library.Track track { get; private set; }
         private SDL.Video.Texture? album_art_texture;
         public SDL.Video.Rect rect;
         public bool focused = false;
