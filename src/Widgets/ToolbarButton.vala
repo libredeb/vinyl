@@ -2,7 +2,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  * SPDX-FileCopyrightText: 2024 Juan Pablo Lozano <libredeb@gmail.com>
  */
-namespace Vinyl.Frontend {
+namespace Vinyl.Widgets {
     public class ToolbarButton : GLib.Object {
         private SDL.Video.Rect rect;
         private SDL.Video.Texture bg_texture;

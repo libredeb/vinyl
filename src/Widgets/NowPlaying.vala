@@ -7,6 +7,7 @@ namespace Vinyl.Widgets {
         private unowned SDL.Video.Renderer renderer;
         private Vinyl.Library.Track track;
         private SDL.Video.Texture? cover_texture;
+        private PlayerControls player_controls;
 
         private int x;
         private int y;
@@ -16,7 +17,8 @@ namespace Vinyl.Widgets {
         public NowPlaying (
             SDL.Video.Renderer renderer,
             Vinyl.Library.Track track,
-            int x, int y, int width, int height
+            int x, int y, int width, int height,
+            int current_track_index, int total_tracks
         ) {
             this.renderer = renderer;
             this.track = track;
@@ -34,6 +36,8 @@ namespace Vinyl.Widgets {
                     this.cover_texture = null;
                 }
             }
+            this.player_controls = new PlayerControls (renderer, x, y + height - 100, width, 100);
+            this.player_controls.update_state (current_track_index, total_tracks);
         }
 
         public void render (
@@ -43,7 +47,7 @@ namespace Vinyl.Widgets {
             SDLTTF.Font? font_small
         ) {
             // Render cover
-            int art_size = 400;
+            int art_size = 300;
             int art_x = this.x + (this.width - art_size) / 2;
             int art_y = this.y + 40;
             if (cover_texture != null) {
@@ -55,15 +59,15 @@ namespace Vinyl.Widgets {
             }
 
             // Render track info
-            int info_y = art_y + art_size + 30;
+            int info_y = art_y + art_size + 20;
             render_text_centered (track.title, info_y, true, font_bold);
-            info_y += 50;
-            render_text_centered (track.artist, info_y, false, font);
             info_y += 40;
+            render_text_centered (track.artist, info_y, false, font);
+            info_y += 30;
             render_text_centered (track.album, info_y, false, font_small);
 
             // Render progress bar
-            int progress_y = info_y + 50;
+            int progress_y = info_y + 30;
             int progress_width = this.width - 140;
             int progress_x = this.x + 70;
 
@@ -79,6 +83,8 @@ namespace Vinyl.Widgets {
             // Render timestamps
             render_text (this.x + 70, progress_y + 20, false, font_small, "1:09");
             render_text_right_aligned (this.x + 70 + progress_width, progress_y + 20, false, font_small, "-2:09");
+
+            player_controls.render ();
         }
 
         private void render_text (int x, int y, bool is_bold, SDLTTF.Font? font, string text) {

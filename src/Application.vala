@@ -19,11 +19,11 @@ namespace Vinyl {
         private Vinyl.Utils.Screen current_screen = Vinyl.Utils.Screen.MAIN;
         private float screen_offset_x = 0;
 
-        private Vinyl.Frontend.ToolbarButton? exit_button;
-        private Vinyl.Frontend.ToolbarButton? back_button;
-        private Vinyl.Frontend.ToolbarButton? playlist_button;
+        private Vinyl.Widgets.ToolbarButton? exit_button;
+        private Vinyl.Widgets.ToolbarButton? back_button;
+        private Vinyl.Widgets.ToolbarButton? playlist_button;
 
-        private Gee.ArrayList<Vinyl.Frontend.MenuButton> main_menu_buttons;
+        private Gee.ArrayList<Vinyl.Widgets.MenuButton> main_menu_buttons;
         private Gee.ArrayList<Object> focusable_widgets;
         private int focused_widget_index = 0;
         private SDL.Input.GameController? controller;
@@ -140,14 +140,14 @@ namespace Vinyl {
                 font_bold = new SDLTTF.Font (Constants.FONT_BOLD_PATH, 38);
                 font_small = new SDLTTF.Font (Constants.FONT_PATH, 18);
 
-                exit_button = new Vinyl.Frontend.ToolbarButton (
+                exit_button = new Vinyl.Widgets.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
                     Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
                     Constants.EXIT_TB_ICON_PATH,
                     20, 20, 80, 50 // Compact size
                 );
-                back_button = new Vinyl.Frontend.ToolbarButton (
+                back_button = new Vinyl.Widgets.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
                     Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
@@ -155,7 +155,7 @@ namespace Vinyl {
                     20, 20, 80, 50 // Compact size
                 );
 
-                playlist_button = new Vinyl.Frontend.ToolbarButton (
+                playlist_button = new Vinyl.Widgets.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
                     Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
@@ -163,16 +163,16 @@ namespace Vinyl {
                     SCREEN_WIDTH - 100, 20, 80, 50
                 );
 
-                main_menu_buttons = new Gee.ArrayList<Vinyl.Frontend.MenuButton> ();
-                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                main_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
+                main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
                     renderer, Constants.LIBRARY_ICON_PATH, "music", "My Music",
                     0, 120, SCREEN_WIDTH, 120
                 ));
-                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
                     renderer, Constants.RADIO_ICON_PATH, "radio", "Radio",
                     0, 240, SCREEN_WIDTH, 120
                 ));
-                main_menu_buttons.add (new Vinyl.Frontend.MenuButton (
+                main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
                     renderer, Constants.SEARCH_ICON_PATH, "search", "Search",
                     0, 360, SCREEN_WIDTH, 120
                 ));
@@ -227,7 +227,8 @@ namespace Vinyl {
                                 now_playing_widget = new Vinyl.Widgets.NowPlaying (
                                     renderer,
                                     track,
-                                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
+                                    track_list.focused_index, track_list.get_total_items ()
                                 );
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                             }
@@ -264,14 +265,14 @@ namespace Vinyl {
                                 break;
                             case SDL.Input.GameController.Button.B:
                                 var widget = focusable_widgets.get (focused_widget_index);
-                                if (widget is Vinyl.Frontend.MenuButton) {
-                                    var button = (Vinyl.Frontend.MenuButton) widget;
+                                if (widget is Vinyl.Widgets.MenuButton) {
+                                    var button = (Vinyl.Widgets.MenuButton) widget;
                                     stdout.printf ("Button '%s' activated!\n", button.text);
                                     if (button.id == "music") {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
                                     }
-                                } else if (widget is Vinyl.Frontend.ToolbarButton) {
-                                    var button = (Vinyl.Frontend.ToolbarButton) widget;
+                                } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                                    var button = (Vinyl.Widgets.ToolbarButton) widget;
                                     if (button == exit_button) {
                                         quit = true;
                                     }
@@ -287,7 +288,8 @@ namespace Vinyl {
                                         now_playing_widget = new Vinyl.Widgets.NowPlaying (
                                             renderer,
                                             track,
-                                            0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                                            0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
+                                            track_list.focused_index, track_list.get_total_items ()
                                         );
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                     }
@@ -483,10 +485,10 @@ namespace Vinyl {
                     var widget = focusable_widgets.get (i);
                     bool is_focused = (i == focused_widget_index);
 
-                    if (widget is Vinyl.Frontend.MenuButton) {
-                        ((Vinyl.Frontend.MenuButton) widget).focused = is_focused;
-                    } else if (widget is Vinyl.Frontend.ToolbarButton) {
-                        ((Vinyl.Frontend.ToolbarButton) widget).focused = is_focused;
+                    if (widget is Vinyl.Widgets.MenuButton) {
+                        ((Vinyl.Widgets.MenuButton) widget).focused = is_focused;
+                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                        ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
                     }
                 }
                 if (back_button != null) {
@@ -495,10 +497,10 @@ namespace Vinyl {
             } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
                 // Unfocus all main screen widgets
                 foreach (var widget in focusable_widgets) {
-                    if (widget is Vinyl.Frontend.MenuButton) {
-                        ((Vinyl.Frontend.MenuButton) widget).focused = false;
-                    } else if (widget is Vinyl.Frontend.ToolbarButton) {
-                        ((Vinyl.Frontend.ToolbarButton) widget).focused = false;
+                    if (widget is Vinyl.Widgets.MenuButton) {
+                        ((Vinyl.Widgets.MenuButton) widget).focused = false;
+                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                        ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
                     }
                 }
 

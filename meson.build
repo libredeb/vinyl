@@ -67,6 +67,7 @@ sources = [
   'src/Widgets/Track.vala',
   'src/Widgets/TrackList.vala',
   'src/Widgets/NowPlaying.vala',
+  'src/Widgets/PlayerControls.vala',
   'src/Library/Track.vala',
   'src/Library/MusicScanner.vala'
 ]
@@ -96,6 +97,16 @@ gfx_files = [
     'search_icon.png',
     'toolbar_button_bg.png',
     'toolbar_button_bg_press.png',
+    'toolbar_divider.png',
+    'toolbar_bkgrd.png',
+    'toolbar_ffwd.png',
+    'toolbar_ffwd_dis.png',
+    'toolbar_play.png',
+    'toolbar_pause.png',
+    'toolbar_rew.png',
+    'toolbar_rew_dis.png',
+    'toolbar_vol_down.png',
+    'toolbar_vol_up.png',
     'default_cover.png'
 ]
 foreach gfx : gfx_files

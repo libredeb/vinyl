@@ -3,7 +3,7 @@
  * SPDX-FileCopyrightText: 2024 Juan Pablo Lozano <libredeb@gmail.com>
  */
 
-namespace Vinyl.Frontend {
+namespace Vinyl.Widgets {
     public class MenuButton : GLib.Object {
         private SDL.Video.Texture icon_texture;
         private SDL.Video.Texture arrow_texture;
