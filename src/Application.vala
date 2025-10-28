@@ -257,9 +257,16 @@ namespace Vinyl {
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
-                        }
-                        if (playlist_button.is_clicked (mouse_x, mouse_y)) {
+                        } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
+                        } else if (now_playing_widget != null) {
+                            var controls = now_playing_widget.player_controls;
+                            if (controls.play_pause_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    player.play_pause ();
+                                }
+                            }
+                            // Note: Add logic for prev, next, volume buttons if needed
                         }
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {

@@ -64,8 +64,8 @@ namespace Vinyl.Widgets {
             var dur_seconds = duration / Gst.SECOND;
             var rem_seconds = dur_seconds - pos_seconds;
 
-            this.current_time_str = "%" + (pos_seconds / 60).to_string() + ":" + "%02d".printf((int)(pos_seconds % 60));
-            this.remaining_time_str = "-%" + (rem_seconds / 60).to_string() + ":" + "%02d".printf((int)(rem_seconds % 60));
+            this.current_time_str = (pos_seconds / 60).to_string() + ":" + "%02d".printf((int)(pos_seconds % 60));
+            this.remaining_time_str = "-" + (rem_seconds / 60).to_string() + ":" + "%02d".printf((int)(rem_seconds % 60));
         }
 
         public void seek (float amount) {

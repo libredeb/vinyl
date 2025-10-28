@@ -9,6 +9,7 @@ namespace Vinyl.Widgets {
         public SDL.Video.Texture? texture_disabled = null;
         public bool disabled = false;
         public bool focused = false;
+        private string current_image_path;
 
         public IconButton (
             SDL.Video.Renderer renderer,
@@ -17,6 +18,7 @@ namespace Vinyl.Widgets {
             int width = 0, int height = 0,
             string? disabled_image_path = null
         ) {
+            this.current_image_path = image_path;
             this.texture = SDLImage.load_texture (renderer, image_path);
             if (this.texture == null) {
                 error (
@@ -67,7 +69,12 @@ namespace Vinyl.Widgets {
         }
 
         public void set_texture (SDL.Video.Renderer renderer, string image_path) {
+            if (this.current_image_path == image_path) {
+                return;
+            }
+
             this.texture = SDLImage.load_texture (renderer, image_path);
+            this.current_image_path = image_path;
         }
     }
 }
