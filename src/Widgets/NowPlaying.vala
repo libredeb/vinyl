@@ -18,6 +18,9 @@ namespace Vinyl.Widgets {
         private int width;
         private int height;
 
+        private string current_time_str = "0:00";
+        private string remaining_time_str = "0:00";
+
         public NowPlaying (
             SDL.Video.Renderer renderer,
             Vinyl.Library.Track track,
@@ -47,6 +50,22 @@ namespace Vinyl.Widgets {
             if (this.progressbar_slider_texture == null) {
                 warning ("Error loading progressbar slider image: %s", SDL.get_error ());
             }
+        }
+
+        public void update_progress (int64 position, int64 duration) {
+            if (duration > 0) {
+                this.progress = (float)position / (float)duration;
+            } else {
+                this.progress = 0;
+            }
+
+            // Update time strings
+            var pos_seconds = position / Gst.SECOND;
+            var dur_seconds = duration / Gst.SECOND;
+            var rem_seconds = dur_seconds - pos_seconds;
+
+            this.current_time_str = "%" + (pos_seconds / 60).to_string() + ":" + "%02d".printf((int)(pos_seconds % 60));
+            this.remaining_time_str = "-%" + (rem_seconds / 60).to_string() + ":" + "%02d".printf((int)(rem_seconds % 60));
         }
 
         public void seek (float amount) {
@@ -115,8 +134,8 @@ namespace Vinyl.Widgets {
             }
 
             // Render timestamps
-            render_text (this.x + 70, progress_y + 20, false, font_small, "1:09");
-            render_text_right_aligned (this.x + 70 + progress_width, progress_y + 20, false, font_small, "-2:09");
+            render_text (this.x + 70, progress_y + 20, false, font_small, current_time_str);
+            render_text_right_aligned (this.x + 70 + progress_width, progress_y + 20, false, font_small, remaining_time_str);
 
             player_controls.render ();
         }

@@ -1,0 +1,80 @@
+/*
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ * SPDX-FileCopyrightText: 2016 Juan Pablo Lozano <libredeb@gmail.com>
+ */
+
+using Gst;
+
+namespace Vinyl {
+    public class Player : GLib.Object {
+        private Gst.Element playbin;
+        private bool _is_playing = false;
+
+        public Player (Library.Track track) {
+            playbin = Gst.ElementFactory.make ("playbin", "playbin");
+            playbin.set_property ("uri", "file://" + track.file_path);
+        }
+
+        public void handle_messages () {
+            var bus = playbin.get_bus ();
+            Gst.Message message;
+            while ((message = bus.pop ()) != null) {
+                switch (message.type) {
+                    case Gst.MessageType.ERROR:
+                        GLib.Error err;
+                        string debug;
+                        message.parse_error (out err, out debug);
+                        // Using stderr for errors is fine
+                        stderr.printf ("  Error from GStreamer: %s\n", err.message);
+                        stderr.printf ("  Debugging info: %s\n", debug);
+                        break;
+                    case Gst.MessageType.EOS:
+                        // Optional: handle end of stream
+                        break;
+                    default:
+                        break;
+                }
+            }
+        }
+
+        public void play_pause () {
+            if (_is_playing) {
+                playbin.set_state (Gst.State.PAUSED);
+                _is_playing = false;
+            } else {
+                var ret = playbin.set_state (Gst.State.PLAYING);
+                if (ret == Gst.StateChangeReturn.ASYNC) {
+                    Gst.State current, pending;
+                    playbin.get_state(out current, out pending, 100 * Gst.MSECOND); // Shorter timeout
+                }
+                _is_playing = true;
+            }
+        }
+
+        public bool is_playing () {
+            return _is_playing;
+        }
+
+        public void stop () {
+            if (playbin != null) {
+                playbin.set_state (Gst.State.NULL);
+            }
+        }
+
+        public int64 get_position () {
+            int64 pos = 0;
+            if (playbin != null) {
+                playbin.query_position (Gst.Format.TIME, out pos);
+            }
+            return pos;
+        }
+
+        public int64 get_duration () {
+            int64 dur = 0;
+            if (playbin != null) {
+                playbin.query_duration (Gst.Format.TIME, out dur);
+            }
+            return dur;
+        }
+    }
+}

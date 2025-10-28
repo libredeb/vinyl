@@ -68,6 +68,7 @@ sources = [
   'src/Widgets/TrackList.vala',
   'src/Widgets/NowPlaying.vala',
   'src/Widgets/PlayerControls.vala',
+  'src/Player.vala',
   'src/Library/Track.vala',
   'src/Library/MusicScanner.vala'
 ]

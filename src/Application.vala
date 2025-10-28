@@ -29,6 +29,8 @@ namespace Vinyl {
         private SDL.Input.GameController? controller;
         private uint last_joy_move = 0; // For joystick move delay
         private bool is_track_list_focused = false;
+        private Vinyl.Player? player = null;
+        private uint last_progress_update = 0;
 
         private Vinyl.Widgets.TrackList? track_list;
         private Vinyl.Widgets.NowPlaying? now_playing_widget;
@@ -36,7 +38,6 @@ namespace Vinyl {
         private int now_playing_focused_widget_index = 0;
 
         public int run (string[] args) {
-            Gst.init (ref args);
             if (!this.init ()) {
                 return 1;
             }
@@ -65,6 +66,9 @@ namespace Vinyl {
             }
 
             while (!this.quit) {
+                if (player != null) {
+                    player.handle_messages ();
+                }
                 this.handle_events ();
                 this.update ();
                 this.render ();
@@ -243,6 +247,11 @@ namespace Vinyl {
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
                                 now_playing_focused_widget_index = 4; // Focus play button
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                if (player != null) {
+                                    player.stop ();
+                                }
+                                player = new Vinyl.Player (track);
+                                player.play_pause ();
                             }
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
@@ -314,6 +323,11 @@ namespace Vinyl {
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
                                         now_playing_focused_widget_index = 4; // Focus play button
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                        if (player != null) {
+                                            player.stop ();
+                                        }
+                                        player = new Vinyl.Player (track);
+                                        player.play_pause ();
                                     }
                                 } else {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
@@ -337,9 +351,10 @@ namespace Vinyl {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
                                     } else if (widget == playlist_button) {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
-                                    } else if (widget is Vinyl.Widgets.IconButton) {
-                                        stdout.printf ("IconButton activated!\n");
-                                        // Here you would add logic to control music playback
+                                    } else if (widget == now_playing_widget.player_controls.play_pause_button) {
+                                        if (player != null) {
+                                            player.play_pause ();
+                                        }
                                     }
                                 }
                                 break;
@@ -480,6 +495,26 @@ namespace Vinyl {
                 }
             }
             update_focus ();
+
+            if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                if (player != null && now_playing_widget != null) {
+                    // Update play/pause icon
+                    if (player.is_playing()) {
+                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.VINYL_DATADIR + "/gfx/toolbar_pause.png");
+                    } else {
+                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.VINYL_DATADIR + "/gfx/toolbar_play.png");
+                    }
+
+                    // Update progress bar every second
+                    var now = SDL.Timer.get_ticks ();
+                    if (now - last_progress_update > 1000) {
+                        var position = player.get_position ();
+                        var duration = player.get_duration ();
+                        now_playing_widget.update_progress (position, duration);
+                        last_progress_update = now;
+                    }
+                }
+            }
         }
 
         private void render () {

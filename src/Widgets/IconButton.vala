@@ -65,5 +65,9 @@ namespace Vinyl.Widgets {
             return (x > this.rect.x && x < this.rect.x + this.rect.w &&
                     y > this.rect.y && y < this.rect.y + this.rect.h);
         }
+
+        public void set_texture (SDL.Video.Renderer renderer, string image_path) {
+            this.texture = SDLImage.load_texture (renderer, image_path);
+        }
     }
 }
