@@ -667,6 +667,10 @@ namespace Vinyl {
         }
 
         private void cleanup () {
+            if (player != null) {
+                player.stop ();
+            }
+
             // Release references to all widgets and fonts.
             // This allows the GC to call the free_functions for the textures and fonts
             // before we call the SDL_Quit functions.
