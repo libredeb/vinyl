@@ -235,12 +235,13 @@ namespace Vinyl {
                                 now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
                                 now_playing_focusable_widgets.add (back_button);
                                 now_playing_focusable_widgets.add (playlist_button);
+                                now_playing_focusable_widgets.add (now_playing_widget);
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
                                 now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
-                                now_playing_focused_widget_index = 3; // Focus play button
+                                now_playing_focused_widget_index = 4; // Focus play button
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                             }
                         }
@@ -274,7 +275,7 @@ namespace Vinyl {
                                     last_joy_move = current_time;
                                 }
                                 break;
-                            case SDL.Input.GameController.Button.B:
+                            case SDL.Input.GameController.Button.A:
                                 var widget = focusable_widgets.get (focused_widget_index);
                                 if (widget is Vinyl.Widgets.MenuButton) {
                                     var button = (Vinyl.Widgets.MenuButton) widget;
@@ -305,12 +306,13 @@ namespace Vinyl {
                                         now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
                                         now_playing_focusable_widgets.add (back_button);
                                         now_playing_focusable_widgets.add (playlist_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget);
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
                                         now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
-                                        now_playing_focused_widget_index = 3; // Focus play button
+                                        now_playing_focused_widget_index = 4; // Focus play button
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                     }
                                 } else {
@@ -391,22 +393,48 @@ namespace Vinyl {
                             }
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
-                        if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
-                            if (e.caxis.value < -8000) { // Left
+                        if (now_playing_focusable_widgets != null) {
+                            if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
                                 if (current_time > last_joy_move + 200) {
-                                    now_playing_focused_widget_index--;
-                                    if (now_playing_focused_widget_index < 0) {
-                                        now_playing_focused_widget_index = now_playing_focusable_widgets.size - 1;
-                                    }
                                     last_joy_move = current_time;
+                                    if (now_playing_focused_widget_index <= 1) { // Top bar
+                                        now_playing_focused_widget_index = (now_playing_focused_widget_index == 0) ? 1 : 0;
+                                    } else if (now_playing_focused_widget_index == 2) { // Progress bar
+                                        if (e.caxis.value < -8000) {
+                                            now_playing_widget.seek (-0.02f);
+                                        } else if (e.caxis.value > 8000) {
+                                            now_playing_widget.seek (0.02f);
+                                        }
+                                    } else { // Player controls
+                                        if (e.caxis.value < -8000) { // Left
+                                            now_playing_focused_widget_index--;
+                                            if (now_playing_focused_widget_index < 3) {
+                                                now_playing_focused_widget_index = now_playing_focusable_widgets.size - 1;
+                                            }
+                                        } else if (e.caxis.value > 8000) { // Right
+                                            now_playing_focused_widget_index++;
+                                            if (now_playing_focused_widget_index >= now_playing_focusable_widgets.size) {
+                                                now_playing_focused_widget_index = 3;
+                                            }
+                                        }
+                                    }
                                 }
-                            } else if (e.caxis.value > 8000) { // Right
+                            } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
                                 if (current_time > last_joy_move + 200) {
-                                    now_playing_focused_widget_index++;
-                                    if (now_playing_focused_widget_index >= now_playing_focusable_widgets.size) {
-                                        now_playing_focused_widget_index = 0;
-                                    }
                                     last_joy_move = current_time;
+                                    if (e.caxis.value < -8000) { // Up
+                                        if (now_playing_focused_widget_index >= 3) { // From Player to Progress
+                                            now_playing_focused_widget_index = 2;
+                                        } else if (now_playing_focused_widget_index == 2) { // From Progress to Top
+                                            now_playing_focused_widget_index = 0;
+                                        }
+                                    } else if (e.caxis.value > 8000) { // Down
+                                        if (now_playing_focused_widget_index <= 1) { // From Top to Progress
+                                            now_playing_focused_widget_index = 2;
+                                        } else if (now_playing_focused_widget_index == 2) { // From Progress to Player
+                                            now_playing_focused_widget_index = 4;
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -574,6 +602,8 @@ namespace Vinyl {
                             ((Vinyl.Widgets.IconButton) widget).focused = is_focused;
                         } else if (widget is Vinyl.Widgets.ToolbarButton) {
                             ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
+                        } else if (widget is Vinyl.Widgets.NowPlaying) {
+                            ((Vinyl.Widgets.NowPlaying) widget).progress_bar_focused = is_focused;
                         }
                     }
                 }

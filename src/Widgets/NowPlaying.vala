@@ -8,6 +8,10 @@ namespace Vinyl.Widgets {
         private Vinyl.Library.Track track;
         private SDL.Video.Texture? cover_texture;
         public PlayerControls player_controls;
+        public bool progress_bar_focused = false;
+
+        private float progress = 0.5f; // 0.0 to 1.0
+        private SDL.Video.Texture? progressbar_slider_texture;
 
         private int x;
         private int y;
@@ -38,6 +42,21 @@ namespace Vinyl.Widgets {
             }
             this.player_controls = new PlayerControls (renderer, x, y + height - 100, width, 100);
             this.player_controls.update_state (current_track_index, total_tracks);
+
+            this.progressbar_slider_texture = SDLImage.load_texture (renderer, Constants.PROGRESSBAR_SLIDER_PATH);
+            if (this.progressbar_slider_texture == null) {
+                warning ("Error loading progressbar slider image: %s", SDL.get_error ());
+            }
+        }
+
+        public void seek (float amount) {
+            this.progress += amount;
+            if (this.progress < 0) {
+                this.progress = 0;
+            }
+            if (this.progress > 1) {
+                this.progress = 1;
+            }
         }
 
         public void render (
@@ -72,13 +91,28 @@ namespace Vinyl.Widgets {
             int progress_x = this.x + 70;
 
             var progress_bar_bg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width, h = 10 };
-            renderer.set_draw_color (80, 80, 90, 255);
+            if (progress_bar_focused) {
+                renderer.set_draw_color (120, 120, 130, 255);
+            } else {
+                renderer.set_draw_color (80, 80, 90, 255);
+            }
             renderer.fill_rect (progress_bar_bg);
 
             // TODO: Calculate progress based on actual playback time
-            var progress_bar_fg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width / 2, h = 10 };
+            int progress_width_pixels = (int)(progress_width * progress);
+            var progress_bar_fg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width_pixels, h = 10 };
             renderer.set_draw_color (0, 150, 255, 255);
             renderer.fill_rect (progress_bar_fg);
+
+            // Render slider
+            if (progressbar_slider_texture != null) {
+                int slider_width = 0;
+                int slider_height = 0;
+                progressbar_slider_texture.query (null, null, out slider_width, out slider_height);
+                int slider_x = progress_x + progress_width_pixels - (slider_width / 2);
+                int slider_y = progress_y + 5 - (slider_height / 2);
+                renderer.copy (progressbar_slider_texture, null, {slider_x, slider_y, slider_width, slider_height});
+            }
 
             // Render timestamps
             render_text (this.x + 70, progress_y + 20, false, font_small, "1:09");

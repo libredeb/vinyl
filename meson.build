@@ -107,6 +107,7 @@ gfx_files = [
     'toolbar_rew_dis.png',
     'toolbar_vol_down.png',
     'toolbar_vol_up.png',
+    'progressbar_slider.png',
     'default_cover.png'
 ]
 foreach gfx : gfx_files
