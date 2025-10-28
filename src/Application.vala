@@ -32,6 +32,8 @@ namespace Vinyl {
 
         private Vinyl.Widgets.TrackList? track_list;
         private Vinyl.Widgets.NowPlaying? now_playing_widget;
+        private Gee.ArrayList<Object>? now_playing_focusable_widgets;
+        private int now_playing_focused_widget_index = 0;
 
         public int run (string[] args) {
             Gst.init (ref args);
@@ -230,6 +232,15 @@ namespace Vinyl {
                                     0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
                                     track_list.focused_index, track_list.get_total_items ()
                                 );
+                                now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
+                                now_playing_focusable_widgets.add (back_button);
+                                now_playing_focusable_widgets.add (playlist_button);
+                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
+                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
+                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
+                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
+                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
+                                now_playing_focused_widget_index = 3; // Focus play button
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                             }
                         }
@@ -291,6 +302,15 @@ namespace Vinyl {
                                             0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
                                             track_list.focused_index, track_list.get_total_items ()
                                         );
+                                        now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
+                                        now_playing_focusable_widgets.add (back_button);
+                                        now_playing_focusable_widgets.add (playlist_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
+                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
+                                        now_playing_focused_widget_index = 3; // Focus play button
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                     }
                                 } else {
@@ -307,6 +327,19 @@ namespace Vinyl {
                         switch (e.cbutton.button) {
                             case SDL.Input.GameController.Button.B:
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
+                                break;
+                            case SDL.Input.GameController.Button.A:
+                                if (now_playing_focusable_widgets != null) {
+                                    var widget = now_playing_focusable_widgets.get (now_playing_focused_widget_index);
+                                    if (widget == back_button) {
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
+                                    } else if (widget == playlist_button) {
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
+                                    } else if (widget is Vinyl.Widgets.IconButton) {
+                                        stdout.printf ("IconButton activated!\n");
+                                        // Here you would add logic to control music playback
+                                    }
+                                }
                                 break;
                         }
                     }
@@ -357,6 +390,26 @@ namespace Vinyl {
                                 }
                             }
                         }
+                    } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                        if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
+                            if (e.caxis.value < -8000) { // Left
+                                if (current_time > last_joy_move + 200) {
+                                    now_playing_focused_widget_index--;
+                                    if (now_playing_focused_widget_index < 0) {
+                                        now_playing_focused_widget_index = now_playing_focusable_widgets.size - 1;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            } else if (e.caxis.value > 8000) { // Right
+                                if (current_time > last_joy_move + 200) {
+                                    now_playing_focused_widget_index++;
+                                    if (now_playing_focused_widget_index >= now_playing_focusable_widgets.size) {
+                                        now_playing_focused_widget_index = 0;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -387,6 +440,7 @@ namespace Vinyl {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
                     now_playing_widget = null;
+                    now_playing_focusable_widgets = null;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
                 screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
@@ -394,6 +448,7 @@ namespace Vinyl {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     now_playing_widget = null;
+                    now_playing_focusable_widgets = null;
                 }
             }
             update_focus ();
@@ -510,6 +565,18 @@ namespace Vinyl {
                 if (track_list != null) {
                     track_list.is_focused = is_track_list_focused;
                 }
+            } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                if (now_playing_focusable_widgets != null) {
+                    for (var i = 0; i < now_playing_focusable_widgets.size; i++) {
+                        var widget = now_playing_focusable_widgets.get(i);
+                        bool is_focused = (i == now_playing_focused_widget_index);
+                        if (widget is Vinyl.Widgets.IconButton) {
+                            ((Vinyl.Widgets.IconButton) widget).focused = is_focused;
+                        } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                            ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
+                        }
+                    }
+                }
             }
         }
 
@@ -537,6 +604,10 @@ namespace Vinyl {
             main_menu_buttons = null;
             focusable_widgets.clear ();
             focusable_widgets = null;
+            if (now_playing_focusable_widgets != null) {
+                now_playing_focusable_widgets.clear ();
+                now_playing_focusable_widgets = null;
+            }
             font = null;
             font_bold = null;
             font_small = null;

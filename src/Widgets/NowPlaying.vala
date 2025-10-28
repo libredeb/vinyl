@@ -7,7 +7,7 @@ namespace Vinyl.Widgets {
         private unowned SDL.Video.Renderer renderer;
         private Vinyl.Library.Track track;
         private SDL.Video.Texture? cover_texture;
-        private PlayerControls player_controls;
+        public PlayerControls player_controls;
 
         private int x;
         private int y;

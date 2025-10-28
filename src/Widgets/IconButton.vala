@@ -3,11 +3,12 @@
  * SPDX-FileCopyrightText: 2016 Juan Pablo Lozano <libredeb@gmail.com>
  */
 namespace Vinyl.Widgets {
-    public class IconButton {
-        public SDL.Video.Rect rect { get; private set; }
+    public class IconButton : GLib.Object {
+        public SDL.Video.Rect rect;
         public SDL.Video.Texture texture;
         public SDL.Video.Texture? texture_disabled = null;
         public bool disabled = false;
+        public bool focused = false;
 
         public IconButton (
             SDL.Video.Renderer renderer,
@@ -46,6 +47,14 @@ namespace Vinyl.Widgets {
                 renderer.copy (this.texture_disabled, null, this.rect);
             } else {
                 renderer.copy (this.texture, null, this.rect);
+            }
+
+            if (focused) {
+                renderer.set_draw_color (53, 132, 228, 255);
+                var focus_rect = this.rect;
+                renderer.draw_rect (focus_rect);
+                focus_rect.x -= 1; focus_rect.y -= 1; focus_rect.w += 2; focus_rect.h += 2;
+                renderer.draw_rect (focus_rect);
             }
         }
 

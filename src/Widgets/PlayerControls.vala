@@ -12,11 +12,11 @@ namespace Vinyl.Widgets {
         private SDL.Video.Texture? bg_texture;
         private SDL.Video.Texture? divider_texture;
 
-        private IconButton? prev_button;
-        private IconButton? play_pause_button;
-        private IconButton? next_button;
-        private IconButton? volume_down_button;
-        private IconButton? volume_up_button;
+        public IconButton? prev_button;
+        public IconButton? play_pause_button;
+        public IconButton? next_button;
+        public IconButton? volume_down_button;
+        public IconButton? volume_up_button;
 
         public PlayerControls (SDL.Video.Renderer renderer, int x, int y, int w, int h) {
             this.renderer = renderer;
