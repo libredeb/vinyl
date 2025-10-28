@@ -3,13 +3,15 @@
 [![License: GPL-3.0-or-later](https://img.shields.io/badge/License-GPL%203.0--or--later-green.svg)](https://opensource.org/licenses/GPL-3.0)
 [![Code Style](https://img.shields.io/badge/code%20style-Vala-purple.svg)](https://wiki.gnome.org/Projects/Vala)
 
-![icon](./data/icons/128/vinyl.svg)
+![icon](https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/icons/128/vinyl.svg)
 
 A desktop music player that provides a beautiful, fullscreen interface to your music library. It's built for those who appreciate a clean aesthetic and intuitive control. Whether you prefer using your keyboard or a gamepad, Vinyl offers a seamless way to navigate your tunes without ever needing to reach for a mouse.
 
 We created Vinyl for music lovers who want to truly connect with their music, bringing back the intentionality of listening to a record.
 
-![screenshot](./data/screenshot.png)
+![screenshot1](https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot.png)
+
+![screenshot2](https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot2.png)
 
 ## Compilation
 
