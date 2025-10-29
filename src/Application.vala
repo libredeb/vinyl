@@ -250,7 +250,7 @@ namespace Vinyl {
                                 if (player != null) {
                                     player.stop ();
                                 }
-                                player = new Vinyl.Player (track);
+                                player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
                                 player.play_pause ();
                             }
                         }
@@ -264,6 +264,24 @@ namespace Vinyl {
                             if (controls.play_pause_button.is_clicked (mouse_x, mouse_y)) {
                                 if (player != null) {
                                     player.play_pause ();
+                                }
+                            } else if (controls.next_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    player.play_next ();
+                                    now_playing_widget.update_track (player.get_current_track ());
+                                    if (track_list != null) {
+                                        track_list.focused_index = player.get_current_track_index ();
+                                        now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
+                                    }
+                                }
+                            } else if (controls.prev_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    player.play_previous ();
+                                    now_playing_widget.update_track (player.get_current_track ());
+                                    if (track_list != null) {
+                                        track_list.focused_index = player.get_current_track_index ();
+                                        now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
+                                    }
                                 }
                             }
                             // Note: Add logic for prev, next, volume buttons if needed
@@ -333,7 +351,7 @@ namespace Vinyl {
                                         if (player != null) {
                                             player.stop ();
                                         }
-                                        player = new Vinyl.Player (track);
+                                        player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
                                         player.play_pause ();
                                     }
                                 } else {
@@ -361,6 +379,24 @@ namespace Vinyl {
                                     } else if (widget == now_playing_widget.player_controls.play_pause_button) {
                                         if (player != null) {
                                             player.play_pause ();
+                                        }
+                                    } else if (widget == now_playing_widget.player_controls.next_button) {
+                                        if (player != null) {
+                                            player.play_next ();
+                                            now_playing_widget.update_track (player.get_current_track ());
+                                            if (track_list != null) {
+                                                track_list.focused_index = player.get_current_track_index ();
+                                                now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
+                                            }
+                                        }
+                                    } else if (widget == now_playing_widget.player_controls.prev_button) {
+                                        if (player != null) {
+                                            player.play_previous ();
+                                            now_playing_widget.update_track (player.get_current_track ());
+                                            if (track_list != null) {
+                                                track_list.focused_index = player.get_current_track_index ();
+                                                now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
+                                            }
                                         }
                                     }
                                 }

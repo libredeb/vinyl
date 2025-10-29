@@ -60,6 +60,7 @@ namespace Vinyl.Widgets {
                     mouse_y >= widget.rect.y && mouse_y <= widget.rect.y + widget.rect.h
                 ) {
                     track = widget.track;
+                    this.focused_index = i;
                     return true;
                 }
             }
@@ -76,6 +77,14 @@ namespace Vinyl.Widgets {
 
         public int get_total_items () {
             return track_widgets.size;
+        }
+
+        public Gee.ArrayList<Vinyl.Library.Track> get_tracks () {
+            var tracks = new Gee.ArrayList<Vinyl.Library.Track> ();
+            foreach (var widget in track_widgets) {
+                tracks.add (widget.track);
+            }
+            return tracks;
         }
     }
 }

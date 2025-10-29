@@ -9,9 +9,15 @@ namespace Vinyl {
     public class Player : GLib.Object {
         private Gst.Element playbin;
         private bool _is_playing = false;
+        private Gee.ArrayList<Library.Track> playlist;
+        private int current_track_index = 0;
 
-        public Player (Library.Track track) {
+        public Player (Gee.ArrayList<Library.Track> playlist, int start_index) {
+            this.playlist = playlist;
+            this.current_track_index = start_index;
+
             playbin = Gst.ElementFactory.make ("playbin", "playbin");
+            var track = playlist.get (start_index);
             playbin.set_property ("uri", "file://" + track.file_path);
         }
 
@@ -49,6 +55,38 @@ namespace Vinyl {
                 }
                 _is_playing = true;
             }
+        }
+
+        public void play_next () {
+            if (current_track_index < playlist.size - 1) {
+                current_track_index++;
+                play_track (current_track_index);
+            }
+        }
+
+        public void play_previous () {
+            if (current_track_index > 0) {
+                current_track_index--;
+                play_track (current_track_index);
+            }
+        }
+
+        private void play_track (int index) {
+            stop ();
+            var track = playlist.get (index);
+            playbin.set_property ("uri", "file://" + track.file_path);
+            play_pause ();
+            if (!_is_playing) {
+                play_pause ();
+            }
+        }
+
+        public int get_current_track_index () {
+            return current_track_index;
+        }
+
+        public Library.Track get_current_track () {
+            return playlist.get (current_track_index);
         }
 
         public bool is_playing () {

@@ -52,6 +52,21 @@ namespace Vinyl.Widgets {
             }
         }
 
+        public void update_track (Vinyl.Library.Track new_track) {
+            this.track = new_track;
+            if (track.album_art_path != null) {
+                var surface = SDLImage.load (track.album_art_path);
+                if (surface != null) {
+                    this.cover_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+                } else {
+                    warning ("Error loading cover image: %s", SDL.get_error ());
+                    this.cover_texture = null;
+                }
+            } else {
+                this.cover_texture = null;
+            }
+        }
+
         public void update_progress (int64 position, int64 duration) {
             if (duration > 0) {
                 this.progress = (float)position / (float)duration;
