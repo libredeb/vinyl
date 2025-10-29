@@ -9,6 +9,7 @@ namespace Vinyl.Widgets {
         private SDL.Video.Texture? cover_texture;
         public PlayerControls player_controls;
         public bool progress_bar_focused = false;
+        private SDL.Video.Rect progress_bar_rect;
 
         private float progress = 0.5f; // 0.0 to 1.0
         private SDL.Video.Texture? progressbar_slider_texture;
@@ -83,7 +84,7 @@ namespace Vinyl.Widgets {
             this.remaining_time_str = "-" + (rem_seconds / 60).to_string() + ":" + "%02d".printf((int)(rem_seconds % 60));
         }
 
-        public void seek (float amount) {
+        public void seek (float amount, Vinyl.Player player) {
             this.progress += amount;
             if (this.progress < 0) {
                 this.progress = 0;
@@ -91,6 +92,56 @@ namespace Vinyl.Widgets {
             if (this.progress > 1) {
                 this.progress = 1;
             }
+            var duration = player.get_duration ();
+            if (duration > 0) {
+                var new_position = (int64) (duration * this.progress);
+                player.seek (new_position);
+            }
+        }
+
+        public void set_progress (float new_progress, Vinyl.Player player) {
+            if (new_progress < 0) {
+                new_progress = 0;
+            }
+            if (new_progress > 1) {
+                new_progress = 1;
+            }
+            this.progress = new_progress;
+            var duration = player.get_duration ();
+            if (duration > 0) {
+                var new_position = (int64) (duration * this.progress);
+                player.seek (new_position);
+            }
+        }
+
+        public bool is_progress_bar_clicked (int mouse_x, int mouse_y, out float new_progress) {
+            // Make the clickable area a bit taller for easier clicking
+            var clickable_rect = SDL.Video.Rect () {
+                x = progress_bar_rect.x,
+                y = progress_bar_rect.y - 10,
+                w = progress_bar_rect.w,
+                h = progress_bar_rect.h + 20
+            };
+
+            if (
+                mouse_x >= clickable_rect.x && mouse_x <= clickable_rect.x + clickable_rect.w &&
+                mouse_y >= clickable_rect.y && mouse_y <= clickable_rect.y + clickable_rect.h
+            ) {
+
+                if (clickable_rect.w > 0) {
+                    new_progress = (float) (mouse_x - clickable_rect.x) / (float) clickable_rect.w;
+                    if (new_progress < 0) {
+                        new_progress = 0;
+                    }
+                    if (new_progress > 1) {
+                        new_progress = 1;
+                    }
+                    return true;
+                }
+            }
+
+            new_progress = 0;
+            return false;
         }
 
         public void render (
@@ -124,13 +175,13 @@ namespace Vinyl.Widgets {
             int progress_width = this.width - 140;
             int progress_x = this.x + 70;
 
-            var progress_bar_bg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width, h = 10 };
+            progress_bar_rect = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width, h = 10 };
             if (progress_bar_focused) {
                 renderer.set_draw_color (120, 120, 130, 255);
             } else {
                 renderer.set_draw_color (80, 80, 90, 255);
             }
-            renderer.fill_rect (progress_bar_bg);
+            renderer.fill_rect (progress_bar_rect);
 
             // TODO: Calculate progress based on actual playback time
             int progress_width_pixels = (int)(progress_width * progress);

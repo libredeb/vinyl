@@ -260,6 +260,12 @@ namespace Vinyl {
                         } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
                         } else if (now_playing_widget != null) {
+                            float new_progress;
+                            if (now_playing_widget.is_progress_bar_clicked (mouse_x, mouse_y, out new_progress)) {
+                                if (player != null) {
+                                    now_playing_widget.set_progress (new_progress, player);
+                                }
+                            }
                             var controls = now_playing_widget.player_controls;
                             if (controls.play_pause_button.is_clicked (mouse_x, mouse_y)) {
                                 if (player != null) {
@@ -459,9 +465,9 @@ namespace Vinyl {
                                         now_playing_focused_widget_index = (now_playing_focused_widget_index == 0) ? 1 : 0;
                                     } else if (now_playing_focused_widget_index == 2) { // Progress bar
                                         if (e.caxis.value < -8000) {
-                                            now_playing_widget.seek (-0.02f);
+                                            now_playing_widget.seek (-0.02f, player);
                                         } else if (e.caxis.value > 8000) {
-                                            now_playing_widget.seek (0.02f);
+                                            now_playing_widget.seek (0.02f, player);
                                         }
                                     } else { // Player controls
                                         if (e.caxis.value < -8000) { // Left

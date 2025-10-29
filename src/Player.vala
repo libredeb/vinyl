@@ -114,5 +114,9 @@ namespace Vinyl {
             }
             return dur;
         }
+
+        public void seek (int64 position) {
+            playbin.seek_simple (Gst.Format.TIME, Gst.SeekFlags.FLUSH, position);
+        }
     }
 }
