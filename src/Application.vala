@@ -252,6 +252,7 @@ namespace Vinyl {
                                 }
                                 player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
                                 player.play_pause ();
+                                now_playing_widget.player_controls.update_volume (player.get_volume ());
                             }
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
@@ -291,6 +292,23 @@ namespace Vinyl {
                                 }
                             }
                             // Note: Add logic for prev, next, volume buttons if needed
+                            else if (controls.volume_down_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    var volume = player.get_volume ();
+                                    volume -= 0.1;
+                                    if (volume < 0.0) volume = 0.0;
+                                    player.set_volume (volume);
+                                    controls.update_volume (volume);
+                                }
+                            } else if (controls.volume_up_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    var volume = player.get_volume ();
+                                    volume += 0.1;
+                                    if (volume > 1.0) volume = 1.0;
+                                    player.set_volume (volume);
+                                    controls.update_volume (volume);
+                                }
+                            }
                         }
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {
@@ -359,6 +377,7 @@ namespace Vinyl {
                                         }
                                         player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
                                         player.play_pause ();
+                                        now_playing_widget.player_controls.update_volume (player.get_volume ());
                                     }
                                 } else {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
@@ -403,6 +422,22 @@ namespace Vinyl {
                                                 track_list.focused_index = player.get_current_track_index ();
                                                 now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
                                             }
+                                        }
+                                    } else if (widget == now_playing_widget.player_controls.volume_down_button) {
+                                        if (player != null) {
+                                            var volume = player.get_volume ();
+                                            volume -= 0.1;
+                                            if (volume < 0.0) volume = 0.0;
+                                            player.set_volume (volume);
+                                            now_playing_widget.player_controls.update_volume (volume);
+                                        }
+                                    } else if (widget == now_playing_widget.player_controls.volume_up_button) {
+                                        if (player != null) {
+                                            var volume = player.get_volume ();
+                                            volume += 0.1;
+                                            if (volume > 1.0) volume = 1.0;
+                                            player.set_volume (volume);
+                                            now_playing_widget.player_controls.update_volume (volume);
                                         }
                                     }
                                 }

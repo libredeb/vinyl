@@ -45,6 +45,11 @@ dependencies = [
     dependency('taglib_c', version: '>=1.13.0')
 ]
 
+# Add math library for drawing rounded rectangles
+c_compiler = meson.get_compiler('c')
+math_dep = c_compiler.find_library('m', required: true)
+dependencies += math_dep
+
 gnome = import('gnome')
 ValaArgs = [
     '--pkg=config',
@@ -61,6 +66,7 @@ sources = [
   'src/Constants.vala',
   'src/Application.vala',
   'src/Utils/Screen.vala',
+  'src/Utils/Drawing.vala',
   'src/Widgets/IconButton.vala',
   'src/Widgets/MenuButton.vala',
   'src/Widgets/ToolbarButton.vala',
@@ -109,6 +115,7 @@ gfx_files = [
     'toolbar_vol_down.png',
     'toolbar_vol_up.png',
     'progressbar_slider.png',
+    'volume_slider.png',
     'default_cover.png'
 ]
 foreach gfx : gfx_files

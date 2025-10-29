@@ -118,5 +118,15 @@ namespace Vinyl {
         public void seek (int64 position) {
             playbin.seek_simple (Gst.Format.TIME, Gst.SeekFlags.FLUSH, position);
         }
+
+        public double get_volume () {
+            double vol = 0;
+            playbin.get ("volume", out vol);
+            return vol;
+        }
+
+        public void set_volume (double vol) {
+            playbin.set ("volume", vol);
+        }
     }
 }

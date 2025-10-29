@@ -28,6 +28,7 @@ namespace Constants {
     public const string TOOLBAR_BUTTON_BG_PRESS_PATH = VINYL_DATADIR + "/gfx/toolbar_button_bg_press.png";
     public const string DEFAULT_COVER_ICON_PATH = VINYL_DATADIR + "/gfx/default_cover.png";
     public const string PROGRESSBAR_SLIDER_PATH = VINYL_DATADIR + "/gfx/progressbar_slider.png";
+    public const string VOLUME_SLIDER_PATH = VINYL_DATADIR + "/gfx/volume_slider.png";
     public const string FONT_PATH = VINYL_DATADIR + "/fonts/FreeSans.ttf";
     public const string FONT_BOLD_PATH = VINYL_DATADIR + "/fonts/FreeSansBold.ttf";
     public const string[] SUPPORTED_FORMATS = {

@@ -175,19 +175,21 @@ namespace Vinyl.Widgets {
             int progress_width = this.width - 140;
             int progress_x = this.x + 70;
 
-            progress_bar_rect = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width, h = 10 };
+            progress_bar_rect = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width, h = 9 };
             if (progress_bar_focused) {
                 renderer.set_draw_color (120, 120, 130, 255);
             } else {
                 renderer.set_draw_color (80, 80, 90, 255);
             }
-            renderer.fill_rect (progress_bar_rect);
+            Vinyl.Utils.Drawing.draw_rounded_rect (renderer, progress_bar_rect);
 
             // TODO: Calculate progress based on actual playback time
             int progress_width_pixels = (int)(progress_width * progress);
-            var progress_bar_fg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width_pixels, h = 10 };
+            var progress_bar_fg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width_pixels, h = 9 };
             renderer.set_draw_color (0, 150, 255, 255);
-            renderer.fill_rect (progress_bar_fg);
+            if (progress_width_pixels > 0) {
+                Vinyl.Utils.Drawing.draw_rounded_rect (renderer, progress_bar_fg);
+            }
 
             // Render slider
             if (progressbar_slider_texture != null) {
@@ -195,7 +197,7 @@ namespace Vinyl.Widgets {
                 int slider_height = 0;
                 progressbar_slider_texture.query (null, null, out slider_width, out slider_height);
                 int slider_x = progress_x + progress_width_pixels - (slider_width / 2);
-                int slider_y = progress_y + 5 - (slider_height / 2);
+                int slider_y = progress_y + 4 - (slider_height / 2);
                 renderer.copy (progressbar_slider_texture, null, {slider_x, slider_y, slider_width, slider_height});
             }
 
