@@ -12,6 +12,8 @@ namespace Vinyl {
         private Gee.ArrayList<Library.Track> playlist;
         private int current_track_index = 0;
 
+        public signal void state_changed (bool is_playing);
+
         public Player (Gee.ArrayList<Library.Track> playlist, int start_index) {
             this.playlist = playlist;
             this.current_track_index = start_index;
@@ -47,14 +49,20 @@ namespace Vinyl {
             if (_is_playing) {
                 playbin.set_state (Gst.State.PAUSED);
                 _is_playing = false;
+                state_changed (_is_playing);
             } else {
-                var ret = playbin.set_state (Gst.State.PLAYING);
-                if (ret == Gst.StateChangeReturn.ASYNC) {
-                    Gst.State current, pending;
-                    playbin.get_state(out current, out pending, 100 * Gst.MSECOND); // Shorter timeout
-                }
-                _is_playing = true;
+                play ();
             }
+        }
+
+        private void play () {
+            var ret = playbin.set_state (Gst.State.PLAYING);
+            if (ret == Gst.StateChangeReturn.ASYNC) {
+                Gst.State current, pending;
+                playbin.get_state(out current, out pending, 100 * Gst.MSECOND); // Shorter timeout
+            }
+            _is_playing = true;
+            state_changed (_is_playing);
         }
 
         public void play_next () {
@@ -72,12 +80,12 @@ namespace Vinyl {
         }
 
         private void play_track (int index) {
+            bool was_playing = _is_playing;
             stop ();
             var track = playlist.get (index);
             playbin.set_property ("uri", "file://" + track.file_path);
-            play_pause ();
-            if (!_is_playing) {
-                play_pause ();
+            if (was_playing) {
+                play ();
             }
         }
 
@@ -96,6 +104,10 @@ namespace Vinyl {
         public void stop () {
             if (playbin != null) {
                 playbin.set_state (Gst.State.NULL);
+                if (_is_playing) {
+                    _is_playing = false;
+                    state_changed (false);
+                }
             }
         }
 

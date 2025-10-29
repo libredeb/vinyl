@@ -22,6 +22,7 @@ namespace Vinyl {
         private Vinyl.Widgets.ToolbarButton? exit_button;
         private Vinyl.Widgets.ToolbarButton? back_button;
         private Vinyl.Widgets.ToolbarButton? playlist_button;
+        private Vinyl.Widgets.ToolbarButton? now_playing_button;
 
         private Gee.ArrayList<Vinyl.Widgets.MenuButton> main_menu_buttons;
         private Gee.ArrayList<Object> focusable_widgets;
@@ -31,6 +32,7 @@ namespace Vinyl {
         private bool is_track_list_focused = false;
         private Vinyl.Player? player = null;
         private uint last_progress_update = 0;
+        private bool is_playing = false;
 
         private Vinyl.Widgets.TrackList? track_list;
         private Vinyl.Widgets.NowPlaying? now_playing_widget;
@@ -169,6 +171,14 @@ namespace Vinyl {
                     SCREEN_WIDTH - 100, 20, 80, 50
                 );
 
+                now_playing_button = new Vinyl.Widgets.ToolbarButton (
+                    renderer,
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
+                    Constants.NOW_PLAYING_TB_ICON_PATH,
+                    SCREEN_WIDTH - 100, 20, 80, 50
+                );
+
                 main_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
                 main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
                     renderer, Constants.LIBRARY_ICON_PATH, "music", "My Music",
@@ -223,6 +233,10 @@ namespace Vinyl {
                                 }
                             }
                         }
+
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y) && player != null && player.is_playing()) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                        }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
@@ -251,9 +265,14 @@ namespace Vinyl {
                                     player.stop ();
                                 }
                                 player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
+                                player.state_changed.connect (on_player_state_changed);
                                 player.play_pause ();
                                 now_playing_widget.player_controls.update_volume (player.get_volume ());
                             }
+                        }
+
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y) && is_playing) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
@@ -376,6 +395,7 @@ namespace Vinyl {
                                             player.stop ();
                                         }
                                         player = new Vinyl.Player (track_list.get_tracks (), track_list.focused_index);
+                                        player.state_changed.connect (on_player_state_changed);
                                         player.play_pause ();
                                         now_playing_widget.player_controls.update_volume (player.get_volume ());
                                     }
@@ -566,16 +586,12 @@ namespace Vinyl {
                 if (screen_offset_x >= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
-                    now_playing_widget = null;
-                    now_playing_focusable_widgets = null;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
                 screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
-                    now_playing_widget = null;
-                    now_playing_focusable_widgets = null;
                 }
             }
             update_focus ();
@@ -584,9 +600,9 @@ namespace Vinyl {
                 if (player != null && now_playing_widget != null) {
                     // Update play/pause icon
                     if (player.is_playing()) {
-                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.VINYL_DATADIR + "/gfx/toolbar_pause.png");
+                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.PAUSE_TB_ICON_PATH);
                     } else {
-                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.VINYL_DATADIR + "/gfx/toolbar_play.png");
+                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.PLAY_TB_ICON_PATH);
                     }
 
                     // Update progress bar every second
@@ -661,12 +677,18 @@ namespace Vinyl {
             if (current_screen == Vinyl.Utils.Screen.MAIN || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
                 render_text ("vinyl", (SCREEN_WIDTH / 2) - 50, 25, true);
                 exit_button.render (renderer);
+                if (is_playing) {
+                    now_playing_button.render (renderer);
+                }
             } else if (
                 current_screen == Vinyl.Utils.Screen.LIBRARY ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY
             ) {
                 render_text ("My Music", (SCREEN_WIDTH / 2) - 80, 25, true);
                 back_button.render (renderer);
+                if (is_playing) {
+                    now_playing_button.render (renderer);
+                }
             } else if (
                 current_screen == Vinyl.Utils.Screen.NOW_PLAYING ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING ||
@@ -741,6 +763,10 @@ namespace Vinyl {
             int text_height = 0;
             text_texture.query (null, null, out text_width, out text_height);
             renderer.copy (text_texture, null, {x, y, text_width, text_height});
+        }
+
+        private void on_player_state_changed (bool is_playing) {
+            this.is_playing = is_playing;
         }
 
         private void cleanup () {

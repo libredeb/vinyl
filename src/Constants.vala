@@ -15,6 +15,8 @@ namespace Constants {
     public const string BACK_TB_ICON_PATH = VINYL_DATADIR + "/gfx/back_tb.png";
     public const string EXIT_TB_ICON_PATH = VINYL_DATADIR + "/gfx/exit_tb.png";
     public const string PLAY_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_play.png";
+    public const string PAUSE_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_pause.png";
+    public const string NOW_PLAYING_TB_ICON_PATH = VINYL_DATADIR + "/gfx/play_tb.png";
     public const string PLAYLIST_TB_ICON_PATH = VINYL_DATADIR + "/gfx/playlist_tb.png";
     public const string PREV_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_rew.png";
     public const string NEXT_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_ffwd.png";
