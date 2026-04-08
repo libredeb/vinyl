@@ -48,24 +48,31 @@ namespace Vinyl {
                 return 1;
             }
 
-            Gee.ArrayList<Vinyl.Library.Track> tracks = null;
-            var loop = new MainLoop ();
-
-            var music_scanner = new Vinyl.Library.MusicScanner ();
-            music_scanner.scan_files.begin ((obj, res) => {
-                tracks = music_scanner.scan_files.end (res);
-                loop.quit ();
-            });
-
-            loop.run ();
-
-            if (tracks != null) {
-                track_list = new Vinyl.Widgets.TrackList (
-                    renderer,
-                    tracks,
-                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
-                );
+            var library_db = new Vinyl.Library.LibraryDatabase ();
+            if (!library_db.open ()) {
+                warning ("Library database could not be opened; continuing with an empty library.");
             }
+
+            var tracks = library_db.load_tracks_for_ui ();
+            track_list = new Vinyl.Widgets.TrackList (
+                renderer,
+                tracks,
+                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+            );
+
+            var music_scanner = new Vinyl.Library.MusicScanner (library_db);
+            music_scanner.sync_library.begin ((obj, res) => {
+                var updated = music_scanner.sync_library.end (res);
+                Idle.add (() => {
+                    if (track_list != null && updated != null) {
+                        track_list.reload_tracks (renderer, updated);
+                        if (player != null) {
+                            player.sync_playlist (track_list.get_tracks ());
+                        }
+                    }
+                    return false;
+                });
+            });
 
             while (!this.quit) {
                 if (player != null) {

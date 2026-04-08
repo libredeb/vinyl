@@ -23,6 +23,35 @@ namespace Vinyl {
             playbin.set_property ("uri", "file://" + track.file_path);
         }
 
+        /** Keeps the current item when the library list is refreshed (e.g. moved file, new tracks). */
+        public void sync_playlist (Gee.ArrayList<Library.Track> new_playlist) {
+            if (new_playlist == null || new_playlist.size == 0) {
+                return;
+            }
+            int64 old_id = playlist.get (current_track_index).db_row_id;
+            string old_path = playlist.get (current_track_index).file_path;
+            playlist = new_playlist;
+            current_track_index = 0;
+            if (old_id >= 0) {
+                for (int i = 0; i < playlist.size; i++) {
+                    if (playlist.get (i).db_row_id == old_id) {
+                        current_track_index = i;
+                        playbin.set_property ("uri", "file://" + playlist.get (i).file_path);
+                        return;
+                    }
+                }
+            }
+            for (int i = 0; i < playlist.size; i++) {
+                if (playlist.get (i).file_path == old_path) {
+                    current_track_index = i;
+                    playbin.set_property ("uri", "file://" + playlist.get (i).file_path);
+                    return;
+                }
+            }
+            current_track_index = 0;
+            playbin.set_property ("uri", "file://" + playlist.get (0).file_path);
+        }
+
         public void handle_messages () {
             var bus = playbin.get_bus ();
             Gst.Message message;

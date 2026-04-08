@@ -20,8 +20,59 @@ namespace Vinyl.Widgets {
         ) {
             this.rect = { x, y, w, h };
             this.visible_items = h / item_height;
+            rebuild_widgets (renderer, tracks);
+        }
+
+        /** Replaces the library contents (e.g. after background DB sync). */
+        public void reload_tracks (
+            SDL.Video.Renderer renderer,
+            Gee.ArrayList<Vinyl.Library.Track> tracks
+        ) {
+            int old_focused = focused_index;
+            int64 old_id = -1;
+            string? old_path = null;
+            if (focused_index >= 0 && focused_index < track_widgets.size) {
+                var t = track_widgets.get (focused_index).track;
+                old_id = t.db_row_id;
+                old_path = t.file_path;
+            }
+            track_widgets.clear ();
+            rebuild_widgets (renderer, tracks);
+            focused_index = 0;
+            top_index = 0;
+            if (track_widgets.size > 0) {
+                if (old_id >= 0) {
+                    for (int i = 0; i < track_widgets.size; i++) {
+                        if (track_widgets.get (i).track.db_row_id == old_id) {
+                            focused_index = i;
+                            break;
+                        }
+                    }
+                } else if (old_path != null) {
+                    for (int i = 0; i < track_widgets.size; i++) {
+                        if (track_widgets.get (i).track.file_path == old_path) {
+                            focused_index = i;
+                            break;
+                        }
+                    }
+                } else {
+                    focused_index = int.min (old_focused, track_widgets.size - 1);
+                }
+                if (focused_index >= top_index + visible_items) {
+                    top_index = focused_index - visible_items + 1;
+                }
+                if (focused_index < top_index) {
+                    top_index = focused_index;
+                }
+            }
+        }
+
+        private void rebuild_widgets (
+            SDL.Video.Renderer renderer,
+            Gee.ArrayList<Vinyl.Library.Track> tracks
+        ) {
             foreach (var track in tracks) {
-                track_widgets.add (new Track (renderer, track, x, 0, w, item_height));
+                track_widgets.add (new Track (renderer, track, rect.x, 0, (int) rect.w, item_height));
             }
         }
 

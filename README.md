@@ -18,15 +18,15 @@ We created Vinyl for music lovers who want to truly connect with their music, br
    1. Install dependencies:
    * For Ubuntu:
       ```sh
-      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libtagc0-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev python3 python3-wheel python3-setuptools
+      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libtagc0-dev libsqlite3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev python3 python3-wheel python3-setuptools
       ```
    * For Fedora:
       ```sh
-      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel taglib-devel gstreamer1-devel gstreamer1-plugins-base-devel python3 python3-wheel python3-setuptools
+      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel taglib-devel sqlite-devel gstreamer1-devel gstreamer1-plugins-base-devel python3 python3-wheel python3-setuptools
       ```
    * For Arch Linux:
       ```sh
-      sudo pacman -Sy meson ninja vala sdl2 sdl2_image sdl2_ttf taglib gstreamer gst-plugins-base-libs python python-wheel python-setuptools
+      sudo pacman -Sy meson ninja vala sdl2 sdl2_image sdl2_ttf taglib sqlite gstreamer gst-plugins-base-libs python python-wheel python-setuptools
       ```
    2. Clone this repository into your machine
       ```sh
@@ -50,6 +50,26 @@ We created Vinyl for music lovers who want to truly connect with their music, br
       ```sh
       sudo ninja uninstall
       ```
+
+## Music library
+
+Music is read from **one** root directory, which is `XDG_MUSIC_DIR` (the music user directory) typically `~/Music`.
+
+### Where files live
+
+| Purpose | Location |
+|--------|----------|
+| Library database | `$XDG_DATA_HOME/vinyl/library.db` (typically `~/.local/share/vinyl/library.db`) |
+| Cover art cache | `$XDG_CACHE_HOME/vinyl/covers` (typically `~/.cache/vinyl/covers`) |
+
+The data directory is created automatically when the database is first opened.
+
+### Supported music formats
+
+- `.mp3`
+- `.flac`
+- `.ogg`
+- `.wav`
 
 ## Developer Section
 

@@ -35,6 +35,7 @@ config_inc_dir = include_directories('.')
 dependencies = [
     dependency('gio-2.0'),
     dependency('gee-0.8'),
+    dependency('sqlite3'),
     dependency('gstreamer-1.0'),
     dependency('gstreamer-pbutils-1.0'),
     dependency('gstreamer-tag-1.0'),
@@ -76,6 +77,7 @@ sources = [
   'src/Widgets/PlayerControls.vala',
   'src/Player.vala',
   'src/Library/Track.vala',
+  'src/Library/LibraryDatabase.vala',
   'src/Library/MusicScanner.vala'
 ]
 
