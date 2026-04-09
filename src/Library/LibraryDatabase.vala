@@ -22,8 +22,8 @@ namespace Vinyl.Library {
         private string db_path;
 
         public LibraryDatabase () {
-            var data_dir = Path.build_filename (Environment.get_user_data_dir (), "vinyl");
-            this.db_path = Path.build_filename (data_dir, "library.db");
+            var data_dir = Path.build_filename (Environment.get_user_data_dir (), Config.PROJECT_NAME);
+            this.db_path = Path.build_filename (data_dir, Constants.LIBRARY_DB_FILE_NAME);
         }
 
         public bool open () {

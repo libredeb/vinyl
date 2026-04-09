@@ -33,14 +33,21 @@ namespace Vinyl.Widgets {
 
             int icon_y = this.y + (this.h - 50) / 2;
 
-            prev_button = new IconButton (renderer, Constants.PREV_TB_ICON_PATH, this.x + 40, icon_y, 50, 50, Constants.PREV_TB_DIS_ICON_PATH);
-            play_pause_button = new IconButton (renderer, Constants.PLAY_TB_ICON_PATH, this.x + 110, icon_y, 50, 50);
-            next_button = new IconButton (renderer, Constants.NEXT_TB_ICON_PATH, this.x + 180, icon_y, 50, 50, Constants.NEXT_TB_DIS_ICON_PATH);
+            prev_button = new IconButton (
+                renderer, Constants.PREV_TB_ICON_PATH, this.x + 40, icon_y, 50, 50,
+                Constants.PREV_TB_DIS_ICON_PATH);
+            play_pause_button = new IconButton (
+                renderer, Constants.PLAY_TB_ICON_PATH, this.x + 110, icon_y, 50, 50);
+            next_button = new IconButton (
+                renderer, Constants.NEXT_TB_ICON_PATH, this.x + 180, icon_y, 50, 50,
+                Constants.NEXT_TB_DIS_ICON_PATH);
 
             int volume_up_x = this.x + this.w - 40 - 50;
             int volume_down_x = this.x + this.w - 40 - 50 - 200; // 200 for bar + padding
-            volume_down_button = new IconButton (renderer, Constants.VOLUME_DOWN_TB_ICON_PATH, volume_down_x, icon_y, 50, 50);
-            volume_up_button = new IconButton (renderer, Constants.VOLUME_UP_TB_ICON_PATH, volume_up_x, icon_y, 50, 50);
+            volume_down_button = new IconButton (
+                renderer, Constants.VOLUME_DOWN_TB_ICON_PATH, volume_down_x, icon_y, 50, 50);
+            volume_up_button = new IconButton (
+                renderer, Constants.VOLUME_UP_TB_ICON_PATH, volume_up_x, icon_y, 50, 50);
         }
 
         public void update_volume (double level) {
@@ -74,16 +81,16 @@ namespace Vinyl.Widgets {
 
             // Render volume bar
             int bar_y = this.y + (this.h - 9) / 2;
-            int bar_x = (int)volume_down_button.rect.x + (int)volume_down_button.rect.w + 10;
-            int bar_width = (int)volume_up_button.rect.x - bar_x - 20; // Added extra padding
-            
+            int bar_x = (int) volume_down_button.rect.x + (int) volume_down_button.rect.w + 10;
+            int bar_width = (int) volume_up_button.rect.x - bar_x - 20; // Added extra padding
+
             var bar_rect = SDL.Video.Rect () { x = bar_x, y = bar_y, w = bar_width, h = 9 };
             renderer.set_draw_color (80, 80, 90, 255);
             Vinyl.Utils.Drawing.draw_rounded_rect (renderer, bar_rect);
 
             // Render current volume level
             renderer.set_draw_color (255, 255, 255, 255);
-            int current_volume_width = (int)(bar_width * this.volume_level);
+            int current_volume_width = (int) (bar_width * this.volume_level);
 
             if (current_volume_width > 0) {
                 var volume_rect = SDL.Video.Rect () { x = bar_x, y = bar_y, w = current_volume_width, h = 9 };

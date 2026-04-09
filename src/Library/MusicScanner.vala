@@ -33,7 +33,11 @@ namespace Vinyl.Library {
 
         public MusicScanner (LibraryDatabase database) {
             this.db = database;
-            this.covers_cache_dir = Path.build_filename (Environment.get_user_cache_dir (), "vinyl", "covers");
+            this.covers_cache_dir = Path.build_filename (
+                Environment.get_user_cache_dir (),
+                Config.PROJECT_NAME,
+                Constants.COVERS_CACHE_DIR_NAME
+            );
 
             try {
                 var cache_dir_file = File.new_for_path (this.covers_cache_dir);
@@ -272,7 +276,8 @@ namespace Vinyl.Library {
                         }
                     }
                     if (orphan != null && orphan.path != hit.path) {
-                        if (this.db.update_after_move (orphan.id, hit.path, hit.dev, hit.inode, hit.mtime_sec, hit.size)) {
+                        if (this.db.update_after_move (
+                                orphan.id, hit.path, hit.dev, hit.inode, hit.mtime_sec, hit.size)) {
                             by_path.unset (orphan.path);
                             orphan.path = hit.path;
                             orphan.mtime_sec = hit.mtime_sec;

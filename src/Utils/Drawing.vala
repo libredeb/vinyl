@@ -9,7 +9,7 @@ namespace Vinyl.Utils {
 
         public static void draw_rounded_rect (SDL.Video.Renderer renderer, SDL.Video.Rect rect) {
             int radius = (int) rect.h / 2;
-            
+
             if (rect.w < rect.h) {
                 draw_filled_circle (renderer, (int) rect.x + (int) rect.w / 2, (int) rect.y + radius, (int) rect.w / 2);
             } else {

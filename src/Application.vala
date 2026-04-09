@@ -30,6 +30,12 @@ namespace Vinyl {
         private SDL.Input.GameController? controller;
         private uint last_joy_move = 0; // For joystick move delay
         private bool is_track_list_focused = false;
+        /** 0 = back, 1 = now_playing toolbar (only when is_playing). */
+        private int library_header_focus = 0;
+        /** Main screen: focus on header toolbar (exit vs now playing) instead of menu body. */
+        private bool main_toolbar_focused = false;
+        /** 0 = exit, 1 = now_playing (only when is_playing). */
+        private int main_toolbar_index = 0;
         private Vinyl.Player? player = null;
         private uint last_progress_update = 0;
         private bool is_playing = false;
@@ -200,11 +206,11 @@ namespace Vinyl {
                     0, 360, SCREEN_WIDTH, 120
                 ));
 
-                // Set focus on the first button by default
+                // Menu entries first (vertical flow), exit last so D-pad down advances logically
                 focusable_widgets = new Gee.ArrayList<Object> ();
-                focusable_widgets.add (exit_button);
                 focusable_widgets.add_all (main_menu_buttons);
-                focused_widget_index = 1;
+                focusable_widgets.add (exit_button);
+                focused_widget_index = 0;
 
             } catch (Error e) {
                 warning ("Error loading gfx: %s", e.message);
@@ -232,7 +238,6 @@ namespace Vinyl {
                             var button = main_menu_buttons.get (i);
                             if (button.is_clicked (mouse_x, mouse_y)) {
                                 focused_widget_index = focusable_widgets.index_of (button);
-                                stdout.printf ("Button '%s' clicked!\n", button.text);
 
                                 // Example of screen transition
                                 if (button.id == "music") {
@@ -241,7 +246,8 @@ namespace Vinyl {
                             }
                         }
 
-                        if (now_playing_button.is_clicked (mouse_x, mouse_y) && player != null && player.is_playing()) {
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y) &&
+                            player != null && player.is_playing ()) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
@@ -257,16 +263,7 @@ namespace Vinyl {
                                     0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
                                     track_list.focused_index, track_list.get_total_items ()
                                 );
-                                now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
-                                now_playing_focusable_widgets.add (back_button);
-                                now_playing_focusable_widgets.add (playlist_button);
-                                now_playing_focusable_widgets.add (now_playing_widget);
-                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
-                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
-                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
-                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
-                                now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
-                                now_playing_focused_widget_index = 4; // Focus play button
+                                build_now_playing_focusable_widgets ();
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                 if (player != null) {
                                     player.stop ();
@@ -302,19 +299,13 @@ namespace Vinyl {
                                 if (player != null) {
                                     player.play_next ();
                                     now_playing_widget.update_track (player.get_current_track ());
-                                    if (track_list != null) {
-                                        track_list.focused_index = player.get_current_track_index ();
-                                        now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
-                                    }
+                                    sync_track_list_focus_from_player ();
                                 }
                             } else if (controls.prev_button.is_clicked (mouse_x, mouse_y)) {
                                 if (player != null) {
                                     player.play_previous ();
                                     now_playing_widget.update_track (player.get_current_track ());
-                                    if (track_list != null) {
-                                        track_list.focused_index = player.get_current_track_index ();
-                                        now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
-                                    }
+                                    sync_track_list_focus_from_player ();
                                 }
                             }
                             // Note: Add logic for prev, next, volume buttons if needed
@@ -341,8 +332,33 @@ namespace Vinyl {
                     if (current_screen == Vinyl.Utils.Screen.MAIN) {
                         uint current_time = SDL.Timer.get_ticks ();
                         switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.DPAD_LEFT:
+                                if (current_time > last_joy_move + 200) {
+                                    if (main_toolbar_focused && is_playing && main_toolbar_index == 1) {
+                                        main_toolbar_index = 0;
+                                        last_joy_move = current_time;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_RIGHT:
+                                if (current_time > last_joy_move + 200) {
+                                    if (main_toolbar_focused && is_playing && main_toolbar_index == 0) {
+                                        main_toolbar_index = 1;
+                                        last_joy_move = current_time;
+                                    }
+                                }
+                                break;
                             case SDL.Input.GameController.Button.DPAD_UP:
                                 if (current_time > last_joy_move + 200) {
+                                    if (main_toolbar_focused) {
+                                        break;
+                                    }
+                                    if (is_playing && focused_widget_index == 0) {
+                                        main_toolbar_focused = true;
+                                        main_toolbar_index = 1;
+                                        last_joy_move = current_time;
+                                        break;
+                                    }
                                     focused_widget_index--;
                                     if (focused_widget_index < 0) {
                                         focused_widget_index = focusable_widgets.size - 1;
@@ -352,6 +368,12 @@ namespace Vinyl {
                                 break;
                             case SDL.Input.GameController.Button.DPAD_DOWN:
                                 if (current_time > last_joy_move + 200) {
+                                    if (main_toolbar_focused) {
+                                        main_toolbar_focused = false;
+                                        focused_widget_index = 0;
+                                        last_joy_move = current_time;
+                                        break;
+                                    }
                                     focused_widget_index++;
                                     if (focused_widget_index >= focusable_widgets.size) {
                                         focused_widget_index = 0;
@@ -360,23 +382,69 @@ namespace Vinyl {
                                 }
                                 break;
                             case SDL.Input.GameController.Button.A:
+                                if (main_toolbar_focused) {
+                                    if (main_toolbar_index == 0) {
+                                        quit = true;
+                                    } else if (is_playing && main_toolbar_index == 1 && player != null) {
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                    }
+                                    break;
+                                }
                                 var widget = focusable_widgets.get (focused_widget_index);
                                 if (widget is Vinyl.Widgets.MenuButton) {
                                     var button = (Vinyl.Widgets.MenuButton) widget;
-                                    stdout.printf ("Button '%s' activated!\n", button.text);
                                     if (button.id == "music") {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
                                     }
                                 } else if (widget is Vinyl.Widgets.ToolbarButton) {
-                                    var button = (Vinyl.Widgets.ToolbarButton) widget;
-                                    if (button == exit_button) {
+                                    var tb = (Vinyl.Widgets.ToolbarButton) widget;
+                                    if (tb == exit_button) {
                                         quit = true;
                                     }
                                 }
                                 break;
                         }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
+                        uint lib_time = SDL.Timer.get_ticks ();
                         switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.DPAD_LEFT:
+                                if (lib_time > last_joy_move + 200) {
+                                    if (!is_track_list_focused && is_playing && library_header_focus == 1) {
+                                        library_header_focus = 0;
+                                        last_joy_move = lib_time;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_RIGHT:
+                                if (lib_time > last_joy_move + 200) {
+                                    if (!is_track_list_focused && is_playing && library_header_focus == 0) {
+                                        library_header_focus = 1;
+                                        last_joy_move = lib_time;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_UP:
+                                if (lib_time > last_joy_move + 200) {
+                                    last_joy_move = lib_time;
+                                    if (is_track_list_focused && track_list != null) {
+                                        if (track_list.focused_index == 0) {
+                                            is_track_list_focused = false;
+                                        } else {
+                                            track_list.scroll_up ();
+                                        }
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_DOWN:
+                                if (lib_time > last_joy_move + 200) {
+                                    last_joy_move = lib_time;
+                                    if (is_track_list_focused && track_list != null) {
+                                        track_list.scroll_down ();
+                                    } else {
+                                        is_track_list_focused = true;
+                                    }
+                                }
+                                break;
                             case SDL.Input.GameController.Button.A:
                                 if (is_track_list_focused && track_list != null) {
                                     var track = track_list.get_focused_track ();
@@ -387,16 +455,7 @@ namespace Vinyl {
                                             0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
                                             track_list.focused_index, track_list.get_total_items ()
                                         );
-                                        now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
-                                        now_playing_focusable_widgets.add (back_button);
-                                        now_playing_focusable_widgets.add (playlist_button);
-                                        now_playing_focusable_widgets.add (now_playing_widget);
-                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.prev_button);
-                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.play_pause_button);
-                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.next_button);
-                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_down_button);
-                                        now_playing_focusable_widgets.add (now_playing_widget.player_controls.volume_up_button);
-                                        now_playing_focused_widget_index = 4; // Focus play button
+                                        build_now_playing_focusable_widgets ();
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                         if (player != null) {
                                             player.stop ();
@@ -406,13 +465,16 @@ namespace Vinyl {
                                         player.play_pause ();
                                         now_playing_widget.player_controls.update_volume (player.get_volume ());
                                     }
+                                } else if (is_playing && library_header_focus == 1) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                 } else {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
                                 }
                                 break;
                             case SDL.Input.GameController.Button.B:
-                                if (back_button.focused) {
+                                if (!is_track_list_focused) {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                                    library_header_focus = 0;
                                 }
                                 break;
                         }
@@ -436,19 +498,13 @@ namespace Vinyl {
                                         if (player != null) {
                                             player.play_next ();
                                             now_playing_widget.update_track (player.get_current_track ());
-                                            if (track_list != null) {
-                                                track_list.focused_index = player.get_current_track_index ();
-                                                now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
-                                            }
+                                            sync_track_list_focus_from_player ();
                                         }
                                     } else if (widget == now_playing_widget.player_controls.prev_button) {
                                         if (player != null) {
                                             player.play_previous ();
                                             now_playing_widget.update_track (player.get_current_track ());
-                                            if (track_list != null) {
-                                                track_list.focused_index = player.get_current_track_index ();
-                                                now_playing_widget.player_controls.update_state (player.get_current_track_index (), track_list.get_total_items ());
-                                            }
+                                            sync_track_list_focus_from_player ();
                                         }
                                     } else if (widget == now_playing_widget.player_controls.volume_down_button) {
                                         if (player != null) {
@@ -474,23 +530,54 @@ namespace Vinyl {
                 } else if (e.type == SDL.EventType.CONTROLLERAXISMOTION) {
                     uint current_time = SDL.Timer.get_ticks ();
                     if (current_screen == Vinyl.Utils.Screen.MAIN) {
-                        // Vertical axis motion
                         if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
                             if (e.caxis.value < -8000) { // Up
                                 if (current_time > last_joy_move + 200) {
-                                    focused_widget_index--;
-                                    if (focused_widget_index < 0) {
-                                        focused_widget_index = focusable_widgets.size - 1;
+                                    if (!main_toolbar_focused && is_playing && focused_widget_index == 0) {
+                                        main_toolbar_focused = true;
+                                        main_toolbar_index = 1;
+                                        last_joy_move = current_time;
+                                    } else if (!main_toolbar_focused) {
+                                        focused_widget_index--;
+                                        if (focused_widget_index < 0) {
+                                            focused_widget_index = focusable_widgets.size - 1;
+                                        }
+                                        last_joy_move = current_time;
                                     }
-                                    last_joy_move = current_time;
                                 }
                             } else if (e.caxis.value > 8000) { // Down
                                 if (current_time > last_joy_move + 200) {
-                                    focused_widget_index++;
-                                    if (focused_widget_index >= focusable_widgets.size) {
+                                    if (main_toolbar_focused) {
+                                        main_toolbar_focused = false;
                                         focused_widget_index = 0;
+                                        last_joy_move = current_time;
+                                    } else {
+                                        focused_widget_index++;
+                                        if (focused_widget_index >= focusable_widgets.size) {
+                                            focused_widget_index = 0;
+                                        }
+                                        last_joy_move = current_time;
                                     }
-                                    last_joy_move = current_time;
+                                }
+                            }
+                        } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
+                            if (current_time > last_joy_move + 200) {
+                                if (main_toolbar_focused && is_playing) {
+                                    if (e.caxis.value < -8000) {
+                                        main_toolbar_index = 0;
+                                        last_joy_move = current_time;
+                                    } else if (e.caxis.value > 8000) {
+                                        main_toolbar_index = 1;
+                                        last_joy_move = current_time;
+                                    }
+                                } else if (
+                                    !main_toolbar_focused && is_playing &&
+                                    focused_widget_index == focusable_widgets.size - 1) {
+                                    if (e.caxis.value > 8000) {
+                                        main_toolbar_focused = true;
+                                        main_toolbar_index = 1;
+                                        last_joy_move = current_time;
+                                    }
                                 }
                             }
                         }
@@ -498,7 +585,7 @@ namespace Vinyl {
                         if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
                             if (e.caxis.value < -8000) { // Up
                                 if (current_time > last_joy_move + 200) {
-                                    if (is_track_list_focused) {
+                                    if (is_track_list_focused && track_list != null) {
                                         if (track_list.focused_index == 0) {
                                             is_track_list_focused = false;
                                         } else {
@@ -509,12 +596,24 @@ namespace Vinyl {
                                 }
                             } else if (e.caxis.value > 8000) { // Down
                                 if (current_time > last_joy_move + 200) {
-                                    if (is_track_list_focused) {
+                                    if (is_track_list_focused && track_list != null) {
                                         track_list.scroll_down ();
                                     } else {
                                         is_track_list_focused = true;
                                     }
                                     last_joy_move = current_time;
+                                }
+                            }
+                        } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
+                            if (current_time > last_joy_move + 200) {
+                                if (!is_track_list_focused && is_playing) {
+                                    if (e.caxis.value < -8000) {
+                                        library_header_focus = 0;
+                                        last_joy_move = current_time;
+                                    } else if (e.caxis.value > 8000) {
+                                        library_header_focus = 1;
+                                        last_joy_move = current_time;
+                                    }
                                 }
                             }
                         }
@@ -524,7 +623,8 @@ namespace Vinyl {
                                 if (current_time > last_joy_move + 200) {
                                     last_joy_move = current_time;
                                     if (now_playing_focused_widget_index <= 1) { // Top bar
-                                        now_playing_focused_widget_index = (now_playing_focused_widget_index == 0) ? 1 : 0;
+                                        now_playing_focused_widget_index =
+                                            (now_playing_focused_widget_index == 0) ? 1 : 0;
                                     } else if (now_playing_focused_widget_index == 2) { // Progress bar
                                         if (e.caxis.value < -8000) {
                                             now_playing_widget.seek (-0.02f, player);
@@ -535,11 +635,13 @@ namespace Vinyl {
                                         if (e.caxis.value < -8000) { // Left
                                             now_playing_focused_widget_index--;
                                             if (now_playing_focused_widget_index < 3) {
-                                                now_playing_focused_widget_index = now_playing_focusable_widgets.size - 1;
+                                                now_playing_focused_widget_index =
+                                                    now_playing_focusable_widgets.size - 1;
                                             }
                                         } else if (e.caxis.value > 8000) { // Right
                                             now_playing_focused_widget_index++;
-                                            if (now_playing_focused_widget_index >= now_playing_focusable_widgets.size) {
+                                            if (now_playing_focused_widget_index >=
+                                                now_playing_focusable_widgets.size) {
                                                 now_playing_focused_widget_index = 3;
                                             }
                                         }
@@ -575,12 +677,16 @@ namespace Vinyl {
                 if (screen_offset_x <= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
+                    is_track_list_focused = false;
+                    library_header_focus = 0;
+                    main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
                 screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
+                    main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING) {
                 screen_offset_x -= TRANSITION_SPEED / 60.0f; // Move to the left
@@ -593,12 +699,16 @@ namespace Vinyl {
                 if (screen_offset_x >= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
+                    is_track_list_focused = false;
+                    library_header_focus = is_playing ? 1 : 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
                 screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
+                    main_toolbar_focused = is_playing;
+                    main_toolbar_index = is_playing ? 1 : 0;
                 }
             }
             update_focus ();
@@ -606,10 +716,12 @@ namespace Vinyl {
             if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
                 if (player != null && now_playing_widget != null) {
                     // Update play/pause icon
-                    if (player.is_playing()) {
-                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.PAUSE_TB_ICON_PATH);
+                    if (player.is_playing ()) {
+                        now_playing_widget.player_controls.play_pause_button.set_texture (
+                            renderer, Constants.PAUSE_TB_ICON_PATH);
                     } else {
-                        now_playing_widget.player_controls.play_pause_button.set_texture (renderer, Constants.PLAY_TB_ICON_PATH);
+                        now_playing_widget.player_controls.play_pause_button.set_texture (
+                            renderer, Constants.PLAY_TB_ICON_PATH);
                     }
 
                     // Update progress bar every second
@@ -682,7 +794,7 @@ namespace Vinyl {
 
             // Draw title and buttons based on screen
             if (current_screen == Vinyl.Utils.Screen.MAIN || current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
-                render_text ("vinyl", (SCREEN_WIDTH / 2) - 50, 25, true);
+                render_text (Config.PROJECT_NAME, (SCREEN_WIDTH / 2) - 50, 25, true);
                 exit_button.render (renderer);
                 if (is_playing) {
                     now_playing_button.render (renderer);
@@ -702,7 +814,8 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY
             ) {
                 if (track_list != null) {
-                    var text = "Now Playing • %d of %d".printf (track_list.focused_index + 1, track_list.get_total_items ());
+                    var text = "Now Playing • %d of %d".printf (
+                        track_list.focused_index + 1, track_list.get_total_items ());
                     render_text (text, (SCREEN_WIDTH / 2) - 150, 25, true);
                 }
                 back_button.render (renderer);
@@ -712,14 +825,33 @@ namespace Vinyl {
 
         private void update_focus () {
             if (current_screen == Vinyl.Utils.Screen.MAIN) {
-                for (var i = 0; i < focusable_widgets.size; i++) {
-                    var widget = focusable_widgets.get (i);
-                    bool is_focused = (i == focused_widget_index);
+                if (!is_playing && (main_toolbar_focused || main_toolbar_index != 0)) {
+                    main_toolbar_focused = false;
+                    main_toolbar_index = 0;
+                }
+                if (main_toolbar_focused) {
+                    foreach (var btn in main_menu_buttons) {
+                        btn.focused = false;
+                    }
+                    if (exit_button != null) {
+                        exit_button.focused = main_toolbar_index == 0;
+                    }
+                    if (now_playing_button != null) {
+                        now_playing_button.focused = is_playing && main_toolbar_index == 1;
+                    }
+                } else {
+                    for (var i = 0; i < focusable_widgets.size; i++) {
+                        var widget = focusable_widgets.get (i);
+                        bool is_focused = (i == focused_widget_index);
 
-                    if (widget is Vinyl.Widgets.MenuButton) {
-                        ((Vinyl.Widgets.MenuButton) widget).focused = is_focused;
-                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
-                        ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
+                        if (widget is Vinyl.Widgets.MenuButton) {
+                            ((Vinyl.Widgets.MenuButton) widget).focused = is_focused;
+                        } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                            ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
+                        }
+                    }
+                    if (now_playing_button != null) {
+                        now_playing_button.focused = false;
                     }
                 }
                 if (back_button != null) {
@@ -735,16 +867,25 @@ namespace Vinyl {
                     }
                 }
 
+                if (!is_playing && library_header_focus != 0) {
+                    library_header_focus = 0;
+                }
                 if (back_button != null) {
-                    back_button.focused = !is_track_list_focused;
+                    back_button.focused = !is_track_list_focused && library_header_focus == 0;
+                }
+                if (now_playing_button != null) {
+                    now_playing_button.focused = !is_track_list_focused && is_playing && library_header_focus == 1;
                 }
                 if (track_list != null) {
                     track_list.is_focused = is_track_list_focused;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
+                if (now_playing_button != null) {
+                    now_playing_button.focused = false;
+                }
                 if (now_playing_focusable_widgets != null) {
                     for (var i = 0; i < now_playing_focusable_widgets.size; i++) {
-                        var widget = now_playing_focusable_widgets.get(i);
+                        var widget = now_playing_focusable_widgets.get (i);
                         bool is_focused = (i == now_playing_focused_widget_index);
                         if (widget is Vinyl.Widgets.IconButton) {
                             ((Vinyl.Widgets.IconButton) widget).focused = is_focused;
@@ -756,6 +897,29 @@ namespace Vinyl {
                     }
                 }
             }
+        }
+
+        private void sync_track_list_focus_from_player () {
+            if (track_list == null || now_playing_widget == null || player == null) {
+                return;
+            }
+            int idx = player.get_current_track_index ();
+            track_list.focused_index = idx;
+            now_playing_widget.player_controls.update_state (idx, track_list.get_total_items ());
+        }
+
+        private void build_now_playing_focusable_widgets () {
+            var c = now_playing_widget.player_controls;
+            now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
+            now_playing_focusable_widgets.add (back_button);
+            now_playing_focusable_widgets.add (playlist_button);
+            now_playing_focusable_widgets.add (now_playing_widget);
+            now_playing_focusable_widgets.add (c.prev_button);
+            now_playing_focusable_widgets.add (c.play_pause_button);
+            now_playing_focusable_widgets.add (c.next_button);
+            now_playing_focusable_widgets.add (c.volume_down_button);
+            now_playing_focusable_widgets.add (c.volume_up_button);
+            now_playing_focused_widget_index = 4; // Focus play button
         }
 
         private void render_text (string text, int x, int y, bool is_bold = false) {

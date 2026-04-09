@@ -88,7 +88,7 @@ namespace Vinyl {
             var ret = playbin.set_state (Gst.State.PLAYING);
             if (ret == Gst.StateChangeReturn.ASYNC) {
                 Gst.State current, pending;
-                playbin.get_state(out current, out pending, 100 * Gst.MSECOND); // Shorter timeout
+                playbin.get_state (out current, out pending, 100 * Gst.MSECOND); // Shorter timeout
             }
             _is_playing = true;
             state_changed (_is_playing);

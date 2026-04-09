@@ -36,4 +36,7 @@ namespace Constants {
     public const string[] SUPPORTED_FORMATS = {
         ".mp3", ".flac", ".ogg", ".wav"
     };
+
+    public const string LIBRARY_DB_FILE_NAME = "library.db";
+    public const string COVERS_CACHE_DIR_NAME = "covers";
 }

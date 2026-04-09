@@ -80,8 +80,10 @@ namespace Vinyl.Widgets {
             var dur_seconds = duration / Gst.SECOND;
             var rem_seconds = dur_seconds - pos_seconds;
 
-            this.current_time_str = (pos_seconds / 60).to_string() + ":" + "%02d".printf((int)(pos_seconds % 60));
-            this.remaining_time_str = "-" + (rem_seconds / 60).to_string() + ":" + "%02d".printf((int)(rem_seconds % 60));
+            this.current_time_str = (pos_seconds / 60).to_string () + ":" +
+                "%02d".printf ((int) (pos_seconds % 60));
+            this.remaining_time_str = "-" + (rem_seconds / 60).to_string () + ":" +
+                "%02d".printf ((int) (rem_seconds % 60));
         }
 
         public void seek (float amount, Vinyl.Player player) {
@@ -183,9 +185,11 @@ namespace Vinyl.Widgets {
             }
             Vinyl.Utils.Drawing.draw_rounded_rect (renderer, progress_bar_rect);
 
-            // TODO: Calculate progress based on actual playback time
-            int progress_width_pixels = (int)(progress_width * progress);
-            var progress_bar_fg = SDL.Video.Rect () { x = progress_x, y = progress_y, w = progress_width_pixels, h = 9 };
+            // Filled width follows self.progress (kept in sync via update_progress).
+            int progress_width_pixels = (int) (progress_width * progress);
+            var progress_bar_fg = SDL.Video.Rect () {
+                x = progress_x, y = progress_y, w = progress_width_pixels, h = 9
+            };
             renderer.set_draw_color (0, 150, 255, 255);
             if (progress_width_pixels > 0) {
                 Vinyl.Utils.Drawing.draw_rounded_rect (renderer, progress_bar_fg);
@@ -203,7 +207,8 @@ namespace Vinyl.Widgets {
 
             // Render timestamps
             render_text (this.x + 70, progress_y + 20, false, font_small, current_time_str);
-            render_text_right_aligned (this.x + 70 + progress_width, progress_y + 20, false, font_small, remaining_time_str);
+            render_text_right_aligned (
+                this.x + 70 + progress_width, progress_y + 20, false, font_small, remaining_time_str);
 
             player_controls.render ();
         }

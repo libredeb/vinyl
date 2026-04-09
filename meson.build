@@ -94,6 +94,29 @@ executable(
     install: true
 )
 
+# Install .desktop so the applications menu shows the launcher
+install_data(
+    'data' / 'io.github.libredeb.vinyl.desktop',
+    install_dir: get_option('datadir') / 'applications',
+    rename: meson.project_name() + '.desktop'
+)
+
+# Install our icons in all the required sizes
+icon_sizes = ['128']
+
+foreach i : icon_sizes
+    install_data(
+        join_paths('data', 'icons', i, 'vinyl.svg'),
+        rename: meson.project_name() + '.svg',
+        install_dir: join_paths(datadir, 'icons', 'hicolor', i + 'x' + i, 'apps')
+    )
+    install_data(
+        join_paths('data', 'icons', i, 'vinyl.svg'),
+        rename: meson.project_name() + '.svg',
+        install_dir: join_paths(datadir, 'icons', 'hicolor', i + 'x' + i + '@2', 'apps')
+    )
+endforeach
+
 # Install GFX icon files
 gfx_files = [
     'arrow_right.png',

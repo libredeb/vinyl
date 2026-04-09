@@ -1,0 +1,14 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+
+Name=Vinyl
+Comment=Browse and play your music library
+GenericName=Music Player
+
+Exec=io.github.libredeb.vinyl
+Icon=io.github.libredeb.vinyl
+Keywords=music;audio;player;library;SDL;
+Terminal=false
+Categories=AudioVideo;Audio;Music;Player;
+X-GNOME-Gettext-Domain=vinyl
