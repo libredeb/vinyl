@@ -6,7 +6,8 @@ namespace Vinyl {
     class Application {
         const int SCREEN_WIDTH = 720;
         const int SCREEN_HEIGHT = 720;
-        const int TRANSITION_SPEED = 1500; // Pixels per second for animation
+        /** Pixels per second; each frame moves by this value / 60 (~60 FPS). One 720px slide ≈ 0.24s. */
+        const int TRANSITION_SPEED = 3000;
 
         private SDL.Video.Window window;
         private SDL.Video.Renderer renderer;
