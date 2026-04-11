@@ -14,7 +14,9 @@ namespace Vinyl.Widgets {
         private SDL.Video.Texture? volume_slider_texture;
 
         public IconButton? prev_button;
+        public IconButton? rewind_button;
         public IconButton? play_pause_button;
+        public IconButton? forward_button;
         public IconButton? next_button;
         public IconButton? volume_down_button;
         public IconButton? volume_up_button;
@@ -36,10 +38,16 @@ namespace Vinyl.Widgets {
             prev_button = new IconButton (
                 renderer, Constants.PREV_TB_ICON_PATH, this.x + 40, icon_y, 50, 50,
                 Constants.PREV_TB_DIS_ICON_PATH);
+            rewind_button = new IconButton (
+                renderer, Constants.REW_TB_ICON_PATH, this.x + 110, icon_y, 50, 50,
+                Constants.REW_TB_DIS_ICON_PATH);
             play_pause_button = new IconButton (
-                renderer, Constants.PLAY_TB_ICON_PATH, this.x + 110, icon_y, 50, 50);
+                renderer, Constants.PLAY_TB_ICON_PATH, this.x + 180, icon_y, 50, 50);
+            forward_button = new IconButton (
+                renderer, Constants.FFWD_TB_ICON_PATH, this.x + 250, icon_y, 50, 50,
+                Constants.FFWD_TB_DIS_ICON_PATH);
             next_button = new IconButton (
-                renderer, Constants.NEXT_TB_ICON_PATH, this.x + 180, icon_y, 50, 50,
+                renderer, Constants.NEXT_TB_ICON_PATH, this.x + 320, icon_y, 50, 50,
                 Constants.NEXT_TB_DIS_ICON_PATH);
 
             int volume_up_x = this.x + this.w - 40 - 50;
@@ -59,6 +67,16 @@ namespace Vinyl.Widgets {
             next_button.disabled = (current_track >= total_tracks - 1);
         }
 
+        public void update_seek_state (int64 position, int64 duration) {
+            if (duration <= 0) {
+                rewind_button.disabled = true;
+                forward_button.disabled = true;
+                return;
+            }
+            rewind_button.disabled = (position <= 0);
+            forward_button.disabled = (position >= duration);
+        }
+
         public void render () {
             if (bg_texture != null) {
                 renderer.copy (bg_texture, null, {this.x, this.y, this.w, this.h});
@@ -68,7 +86,9 @@ namespace Vinyl.Widgets {
             }
 
             prev_button.render (renderer);
+            rewind_button.render (renderer);
             play_pause_button.render (renderer);
+            forward_button.render (renderer);
             next_button.render (renderer);
             volume_down_button.render (renderer);
             volume_up_button.render (renderer);
@@ -77,6 +97,8 @@ namespace Vinyl.Widgets {
                 int divider_y = this.y + (this.h - 50) / 2;
                 renderer.copy (divider_texture, null, {this.x + 99, divider_y, 2, 50});
                 renderer.copy (divider_texture, null, {this.x + 169, divider_y, 2, 50});
+                renderer.copy (divider_texture, null, {this.x + 239, divider_y, 2, 50});
+                renderer.copy (divider_texture, null, {this.x + 309, divider_y, 2, 50});
             }
 
             // Render volume bar

@@ -55,11 +55,9 @@ namespace Vinyl.Library {
                 return xdg;
             }
             string home = Environment.get_home_dir ();
-            foreach (string name in new string[] { "Music", "Musica" }) {
-                string p = Path.build_filename (home, name);
-                if (FileUtils.test (p, FileTest.IS_DIR)) {
-                    return p;
-                }
+            string p = Path.build_filename (home, "Music");
+            if (FileUtils.test (p, FileTest.IS_DIR)) {
+                return p;
             }
             return null;
         }

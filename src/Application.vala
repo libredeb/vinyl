@@ -284,26 +284,30 @@ namespace Vinyl {
                         } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
                         } else if (now_playing_widget != null) {
-                            float new_progress;
-                            if (now_playing_widget.is_progress_bar_clicked (mouse_x, mouse_y, out new_progress)) {
-                                if (player != null) {
-                                    now_playing_widget.set_progress (new_progress, player);
-                                }
-                            }
                             var controls = now_playing_widget.player_controls;
-                            if (controls.play_pause_button.is_clicked (mouse_x, mouse_y)) {
+                            if (controls.prev_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    player.play_previous ();
+                                    now_playing_widget.update_track (player.get_current_track ());
+                                    sync_track_list_focus_from_player ();
+                                }
+                            } else if (controls.rewind_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    now_playing_widget.seek (-0.05f, player);
+                                    apply_seek_ui_sync ();
+                                }
+                            } else if (controls.play_pause_button.is_clicked (mouse_x, mouse_y)) {
                                 if (player != null) {
                                     player.play_pause ();
+                                }
+                            } else if (controls.forward_button.is_clicked (mouse_x, mouse_y)) {
+                                if (player != null) {
+                                    now_playing_widget.seek (0.05f, player);
+                                    apply_seek_ui_sync ();
                                 }
                             } else if (controls.next_button.is_clicked (mouse_x, mouse_y)) {
                                 if (player != null) {
                                     player.play_next ();
-                                    now_playing_widget.update_track (player.get_current_track ());
-                                    sync_track_list_focus_from_player ();
-                                }
-                            } else if (controls.prev_button.is_clicked (mouse_x, mouse_y)) {
-                                if (player != null) {
-                                    player.play_previous ();
                                     now_playing_widget.update_track (player.get_current_track ());
                                     sync_track_list_focus_from_player ();
                                 }
@@ -329,7 +333,11 @@ namespace Vinyl {
                         }
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {
-                    if (current_screen == Vinyl.Utils.Screen.MAIN) {
+                    if (e.cbutton.button == SDL.Input.GameController.Button.B &&
+                        (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY ||
+                         current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN)) {
+                        /* Drop extra B presses while the Now Playing exit animation runs. */
+                    } else if (current_screen == Vinyl.Utils.Screen.MAIN) {
                         uint current_time = SDL.Timer.get_ticks ();
                         switch (e.cbutton.button) {
                             case SDL.Input.GameController.Button.DPAD_LEFT:
@@ -490,19 +498,31 @@ namespace Vinyl {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
                                     } else if (widget == playlist_button) {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
+                                    } else if (widget == now_playing_widget.player_controls.prev_button) {
+                                        if (player != null) {
+                                            player.play_previous ();
+                                            now_playing_widget.update_track (player.get_current_track ());
+                                            sync_track_list_focus_from_player ();
+                                        }
+                                    } else if (widget == now_playing_widget.player_controls.rewind_button) {
+                                        var rb = now_playing_widget.player_controls.rewind_button;
+                                        if (player != null && rb != null && !rb.disabled) {
+                                            now_playing_widget.seek (-0.05f, player);
+                                            apply_seek_ui_sync ();
+                                        }
                                     } else if (widget == now_playing_widget.player_controls.play_pause_button) {
                                         if (player != null) {
                                             player.play_pause ();
                                         }
+                                    } else if (widget == now_playing_widget.player_controls.forward_button) {
+                                        var fb = now_playing_widget.player_controls.forward_button;
+                                        if (player != null && fb != null && !fb.disabled) {
+                                            now_playing_widget.seek (0.05f, player);
+                                            apply_seek_ui_sync ();
+                                        }
                                     } else if (widget == now_playing_widget.player_controls.next_button) {
                                         if (player != null) {
                                             player.play_next ();
-                                            now_playing_widget.update_track (player.get_current_track ());
-                                            sync_track_list_focus_from_player ();
-                                        }
-                                    } else if (widget == now_playing_widget.player_controls.prev_button) {
-                                        if (player != null) {
-                                            player.play_previous ();
                                             now_playing_widget.update_track (player.get_current_track ());
                                             sync_track_list_focus_from_player ();
                                         }
@@ -625,16 +645,10 @@ namespace Vinyl {
                                     if (now_playing_focused_widget_index <= 1) { // Top bar
                                         now_playing_focused_widget_index =
                                             (now_playing_focused_widget_index == 0) ? 1 : 0;
-                                    } else if (now_playing_focused_widget_index == 2) { // Progress bar
-                                        if (e.caxis.value < -8000) {
-                                            now_playing_widget.seek (-0.02f, player);
-                                        } else if (e.caxis.value > 8000) {
-                                            now_playing_widget.seek (0.02f, player);
-                                        }
                                     } else { // Player controls
                                         if (e.caxis.value < -8000) { // Left
                                             now_playing_focused_widget_index--;
-                                            if (now_playing_focused_widget_index < 3) {
+                                            if (now_playing_focused_widget_index < 2) {
                                                 now_playing_focused_widget_index =
                                                     now_playing_focusable_widgets.size - 1;
                                             }
@@ -642,7 +656,7 @@ namespace Vinyl {
                                             now_playing_focused_widget_index++;
                                             if (now_playing_focused_widget_index >=
                                                 now_playing_focusable_widgets.size) {
-                                                now_playing_focused_widget_index = 3;
+                                                now_playing_focused_widget_index = 2;
                                             }
                                         }
                                     }
@@ -651,16 +665,12 @@ namespace Vinyl {
                                 if (current_time > last_joy_move + 200) {
                                     last_joy_move = current_time;
                                     if (e.caxis.value < -8000) { // Up
-                                        if (now_playing_focused_widget_index >= 3) { // From Player to Progress
-                                            now_playing_focused_widget_index = 2;
-                                        } else if (now_playing_focused_widget_index == 2) { // From Progress to Top
+                                        if (now_playing_focused_widget_index >= 2) {
                                             now_playing_focused_widget_index = 0;
                                         }
                                     } else if (e.caxis.value > 8000) { // Down
-                                        if (now_playing_focused_widget_index <= 1) { // From Top to Progress
+                                        if (now_playing_focused_widget_index <= 1) {
                                             now_playing_focused_widget_index = 2;
-                                        } else if (now_playing_focused_widget_index == 2) { // From Progress to Player
-                                            now_playing_focused_widget_index = 4;
                                         }
                                     }
                                 }
@@ -891,11 +901,16 @@ namespace Vinyl {
                             ((Vinyl.Widgets.IconButton) widget).focused = is_focused;
                         } else if (widget is Vinyl.Widgets.ToolbarButton) {
                             ((Vinyl.Widgets.ToolbarButton) widget).focused = is_focused;
-                        } else if (widget is Vinyl.Widgets.NowPlaying) {
-                            ((Vinyl.Widgets.NowPlaying) widget).progress_bar_focused = is_focused;
                         }
                     }
                 }
+            }
+        }
+
+        private void apply_seek_ui_sync () {
+            if (player != null && now_playing_widget != null) {
+                last_progress_update = SDL.Timer.get_ticks ();
+                now_playing_widget.sync_ui_after_relative_seek (player);
             }
         }
 
@@ -913,9 +928,10 @@ namespace Vinyl {
             now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
             now_playing_focusable_widgets.add (back_button);
             now_playing_focusable_widgets.add (playlist_button);
-            now_playing_focusable_widgets.add (now_playing_widget);
             now_playing_focusable_widgets.add (c.prev_button);
+            now_playing_focusable_widgets.add (c.rewind_button);
             now_playing_focusable_widgets.add (c.play_pause_button);
+            now_playing_focusable_widgets.add (c.forward_button);
             now_playing_focusable_widgets.add (c.next_button);
             now_playing_focusable_widgets.add (c.volume_down_button);
             now_playing_focusable_widgets.add (c.volume_up_button);

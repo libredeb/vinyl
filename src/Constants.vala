@@ -20,6 +20,10 @@ namespace Constants {
     public const string PLAYLIST_TB_ICON_PATH = VINYL_DATADIR + "/gfx/playlist_tb.png";
     public const string PREV_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_prev_song.png";
     public const string NEXT_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_next_song.png";
+    public const string REW_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_rew.png";
+    public const string FFWD_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_ffwd.png";
+    public const string REW_TB_DIS_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_rew_dis.png";
+    public const string FFWD_TB_DIS_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_ffwd_dis.png";
     public const string VOLUME_DOWN_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_vol_down.png";
     public const string VOLUME_UP_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_vol_up.png";
     public const string PREV_TB_DIS_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_prev_song_dis.png";
