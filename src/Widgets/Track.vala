@@ -54,31 +54,47 @@ namespace Vinyl.Widgets {
                 renderer.copy (this.album_art_texture, null, art_dest_rect);
             }
 
-            // Render title
-            var title_surface = font.render (this.track.title, {255, 255, 255, 255});
-            var title_texture = SDL.Video.Texture.create_from_surface (renderer, title_surface);
-            int title_width, title_height;
-            title_texture.query (null, null, out title_width, out title_height);
-            var title_dest_rect = SDL.Video.Rect () {
-                x = (int)(art_dest_rect.x + art_dest_rect.w + 20),
-                y = (int)(this.rect.y + (this.rect.h / 2) - title_height),
-                w = title_width,
-                h = title_height
-            };
-            renderer.copy (title_texture, null, title_dest_rect);
+            int text_x = (int)(art_dest_rect.x + art_dest_rect.w + 20);
+            int max_text_w = this.rect.x + (int) this.rect.w - text_x - 20;
 
-            // Render artist
-            var artist_surface = small_font.render (this.track.artist, {200, 200, 200, 255});
-            var artist_texture = SDL.Video.Texture.create_from_surface (renderer, artist_surface);
-            int artist_width, artist_height;
-            artist_texture.query (null, null, out artist_width, out artist_height);
-            var artist_dest_rect = SDL.Video.Rect () {
-                x = (int)(art_dest_rect.x + art_dest_rect.w + 20),
-                y = (int)(this.rect.y + (this.rect.h / 2)),
-                w = artist_width,
-                h = artist_height
-            };
-            renderer.copy (artist_texture, null, artist_dest_rect);
+            render_ellipsized (renderer, font, this.track.title, {255, 255, 255, 255},
+                text_x, (int)(this.rect.y + (this.rect.h / 2)), max_text_w, true);
+
+            render_ellipsized (renderer, small_font, this.track.artist, {200, 200, 200, 255},
+                text_x, (int)(this.rect.y + (this.rect.h / 2)), max_text_w, false);
+        }
+
+        private void render_ellipsized (
+            SDL.Video.Renderer renderer,
+            SDLTTF.Font font,
+            string text,
+            SDL.Video.Color color,
+            int x, int y,
+            int max_width,
+            bool above_baseline
+        ) {
+            string display_text = text;
+            var surface = font.render (display_text, color);
+            var texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+            int tw, th;
+            texture.query (null, null, out tw, out th);
+
+            if (tw > max_width) {
+                string truncated = text;
+                while (truncated.length > 1) {
+                    truncated = truncated.substring (0, truncated.length - 1);
+                    display_text = truncated + "…";
+                    surface = font.render (display_text, color);
+                    texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+                    texture.query (null, null, out tw, out th);
+                    if (tw <= max_width) {
+                        break;
+                    }
+                }
+            }
+
+            int dest_y = above_baseline ? y - th : y;
+            renderer.copy (texture, null, {x, dest_y, tw, th});
         }
     }
 }

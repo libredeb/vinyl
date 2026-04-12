@@ -21,6 +21,10 @@ namespace Vinyl.Widgets {
         private string current_time_str = "0:00";
         private string remaining_time_str = "0:00";
 
+        private const int MARQUEE_PADDING = 40;
+        private const int MARQUEE_GAP = 80;
+        private const double MARQUEE_SPEED = 50.0;
+
         public NowPlaying (
             SDL.Video.Renderer renderer,
             Vinyl.Library.Track track,
@@ -205,8 +209,47 @@ namespace Vinyl.Widgets {
             int text_width = 0;
             int text_height = 0;
             texture.query (null, null, out text_width, out text_height);
-            int x = this.x + (this.width - text_width) / 2;
-            renderer.copy (texture, null, {x, y, text_width, text_height});
+
+            int max_width = this.width - MARQUEE_PADDING * 2;
+            if (text_width <= max_width) {
+                int tx = this.x + (this.width - text_width) / 2;
+                renderer.copy (texture, null, {tx, y, text_width, text_height});
+            } else {
+                render_marquee (texture, text_width, text_height, y, max_width);
+            }
+        }
+
+        private void render_marquee (
+            SDL.Video.Texture texture,
+            int text_width, int text_height,
+            int y, int max_width
+        ) {
+            int area_x = this.x + MARQUEE_PADDING;
+            int cycle_width = text_width + MARQUEE_GAP;
+            uint ticks = SDL.Timer.get_ticks ();
+            int offset = (int) ((ticks * MARQUEE_SPEED / 1000.0) % cycle_width);
+
+            render_marquee_copy (texture, text_width, text_height, y, area_x, max_width, -offset);
+            render_marquee_copy (texture, text_width, text_height, y, area_x, max_width, -offset + cycle_width);
+        }
+
+        private void render_marquee_copy (
+            SDL.Video.Texture texture,
+            int tw, int th,
+            int y,
+            int area_x, int area_w,
+            int rel_x
+        ) {
+            if (rel_x >= area_w || rel_x + tw <= 0) {
+                return;
+            }
+            int src_x = (rel_x < 0) ? -rel_x : 0;
+            int dst_x = area_x + int.max (rel_x, 0);
+            int vis_w = int.min (tw - src_x, area_w - int.max (rel_x, 0));
+            if (vis_w <= 0) {
+                return;
+            }
+            renderer.copy (texture, {src_x, 0, vis_w, th}, {dst_x, y, vis_w, th});
         }
 
         private void render_text_right_aligned (int x, int y, bool is_bold, SDLTTF.Font? font, string text) {

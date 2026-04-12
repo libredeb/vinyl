@@ -78,7 +78,11 @@ sources = [
   'src/Player.vala',
   'src/Library/Track.vala',
   'src/Library/LibraryDatabase.vala',
-  'src/Library/MusicScanner.vala'
+  'src/Library/MusicScanner.vala',
+  'src/Radio/RadioStation.vala',
+  'src/Radio/RadioPlayer.vala',
+  'src/Widgets/RadioStationRow.vala',
+  'src/Widgets/RadioStationList.vala'
 ]
 
 executable(
@@ -154,6 +158,26 @@ foreach gfx : gfx_files
     )
 endforeach
 
+# Install flag icon files
+flag_files = [
+    'AR.png',
+    'BR.png',
+    'CA.png',
+    'CN.png',
+    'DE.png',
+    'EN.png',
+    'ES.png',
+    'FR.png',
+    'MX.png',
+    'UK.png'
+]
+foreach flag : flag_files
+    install_data(
+        join_paths('data', 'gfx', 'flags', flag),
+        install_dir: join_paths(datadir, PROJECT_NAME, 'gfx', 'flags')
+    )
+endforeach
+
 # Install font files
 font_files = [
     'FreeSans.ttf',
@@ -169,6 +193,12 @@ endforeach
 # Install the gamecontrollerdb.txt file
 install_data(
     join_paths('data', 'gamecontrollerdb.txt'),
+    install_dir: join_paths(datadir, PROJECT_NAME)
+)
+
+# Install the radios.ini configuration file
+install_data(
+    join_paths('data', 'radios.ini'),
     install_dir: join_paths(datadir, PROJECT_NAME)
 )
 

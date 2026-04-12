@@ -6,9 +6,9 @@
 namespace Vinyl.Widgets {
     public class TrackList : GLib.Object {
         private Gee.ArrayList<Track> track_widgets = new Gee.ArrayList<Track> ();
-        private int item_height = 80;
+        private int item_height;
         private int visible_items = 0;
-        private int top_index = 0; // The index of the first visible item
+        private int top_index = 0;
         public int focused_index = 0;
         public bool is_focused = false;
         private SDL.Video.Rect rect;
@@ -19,8 +19,21 @@ namespace Vinyl.Widgets {
             int x, int y, int w, int h
         ) {
             this.rect = { x, y, w, h };
-            this.visible_items = h / item_height;
+            compute_item_height (tracks.size);
             rebuild_widgets (renderer, tracks);
+        }
+
+        private void compute_item_height (int count) {
+            int base_height = 80;
+            this.visible_items = (int) this.rect.h / base_height;
+            if (count > 0 && count < this.visible_items) {
+                this.visible_items = count;
+            }
+            if (this.visible_items > 0) {
+                this.item_height = (int) this.rect.h / this.visible_items;
+            } else {
+                this.item_height = base_height;
+            }
         }
 
         /** Replaces the library contents (e.g. after background DB sync). */
@@ -37,6 +50,7 @@ namespace Vinyl.Widgets {
                 old_path = t.file_path;
             }
             track_widgets.clear ();
+            compute_item_height (tracks.size);
             rebuild_widgets (renderer, tracks);
             focused_index = 0;
             top_index = 0;

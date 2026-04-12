@@ -46,6 +46,12 @@ namespace Vinyl {
         private Gee.ArrayList<Object>? now_playing_focusable_widgets;
         private int now_playing_focused_widget_index = 0;
 
+        private Vinyl.Widgets.RadioStationList? radio_station_list;
+        private Vinyl.Radio.RadioPlayer? radio_player;
+        private bool is_radio_list_focused = false;
+        /** 0 = back, 1 = now_playing toolbar (only when music is_playing). */
+        private int radio_header_focus = 0;
+
         public int run (string[] args) {
             if (!this.init ()) {
                 return 1;
@@ -67,6 +73,14 @@ namespace Vinyl {
                 0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
             );
 
+            var stations = Vinyl.Radio.RadioStation.load_stations ();
+            radio_station_list = new Vinyl.Widgets.RadioStationList (
+                renderer,
+                stations,
+                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+            );
+            radio_player = new Vinyl.Radio.RadioPlayer ();
+
             var music_scanner = new Vinyl.Library.MusicScanner (library_db);
             music_scanner.sync_library.begin ((obj, res) => {
                 var updated = music_scanner.sync_library.end (res);
@@ -84,6 +98,9 @@ namespace Vinyl {
             while (!this.quit) {
                 if (player != null) {
                     player.handle_messages ();
+                }
+                if (radio_player != null) {
+                    radio_player.handle_messages ();
                 }
                 this.handle_events ();
                 this.update ();
@@ -240,9 +257,10 @@ namespace Vinyl {
                             if (button.is_clicked (mouse_x, mouse_y)) {
                                 focused_widget_index = focusable_widgets.index_of (button);
 
-                                // Example of screen transition
                                 if (button.id == "music") {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                } else if (button.id == "radio") {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                                 }
                             }
                         }
@@ -258,6 +276,7 @@ namespace Vinyl {
                         Vinyl.Library.Track? track = null;
                         if (track_list != null && track_list.is_clicked (mouse_x, mouse_y, out track)) {
                             if (track != null) {
+                                stop_radio ();
                                 now_playing_widget = new Vinyl.Widgets.NowPlaying (
                                     renderer,
                                     track,
@@ -332,6 +351,33 @@ namespace Vinyl {
                                 }
                             }
                         }
+                    } else if (current_screen == Vinyl.Utils.Screen.RADIO) {
+                        if (back_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN;
+                        }
+                        Vinyl.Radio.RadioStation? clicked_station = null;
+                        if (radio_station_list != null && radio_station_list.is_clicked (mouse_x, mouse_y, out clicked_station)) {
+                            if (clicked_station != null && radio_player != null) {
+                                start_radio (clicked_station);
+                            }
+                        }
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y) && is_playing) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                        }
+                    }
+                } else if (e.type == SDL.EventType.MOUSEWHEEL) {
+                    if (current_screen == Vinyl.Utils.Screen.LIBRARY && track_list != null) {
+                        if (e.wheel.y > 0) {
+                            track_list.scroll_up ();
+                        } else if (e.wheel.y < 0) {
+                            track_list.scroll_down ();
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.RADIO && radio_station_list != null) {
+                        if (e.wheel.y > 0) {
+                            radio_station_list.scroll_up ();
+                        } else if (e.wheel.y < 0) {
+                            radio_station_list.scroll_down ();
+                        }
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERBUTTONDOWN) {
                     if (e.cbutton.button == SDL.Input.GameController.Button.B &&
@@ -404,6 +450,8 @@ namespace Vinyl {
                                     var button = (Vinyl.Widgets.MenuButton) widget;
                                     if (button.id == "music") {
                                         current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                    } else if (button.id == "radio") {
+                                        current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                                     }
                                 } else if (widget is Vinyl.Widgets.ToolbarButton) {
                                     var tb = (Vinyl.Widgets.ToolbarButton) widget;
@@ -458,6 +506,7 @@ namespace Vinyl {
                                 if (is_track_list_focused && track_list != null) {
                                     var track = track_list.get_focused_track ();
                                     if (track != null) {
+                                        stop_radio ();
                                         now_playing_widget = new Vinyl.Widgets.NowPlaying (
                                             renderer,
                                             track,
@@ -484,6 +533,66 @@ namespace Vinyl {
                                 if (!is_track_list_focused) {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
                                     library_header_focus = 0;
+                                }
+                                break;
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.RADIO) {
+                        uint radio_time = SDL.Timer.get_ticks ();
+                        switch (e.cbutton.button) {
+                            case SDL.Input.GameController.Button.DPAD_LEFT:
+                                if (radio_time > last_joy_move + 200) {
+                                    if (!is_radio_list_focused && is_playing && radio_header_focus == 1) {
+                                        radio_header_focus = 0;
+                                        last_joy_move = radio_time;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_RIGHT:
+                                if (radio_time > last_joy_move + 200) {
+                                    if (!is_radio_list_focused && is_playing && radio_header_focus == 0) {
+                                        radio_header_focus = 1;
+                                        last_joy_move = radio_time;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_UP:
+                                if (radio_time > last_joy_move + 200) {
+                                    last_joy_move = radio_time;
+                                    if (is_radio_list_focused && radio_station_list != null) {
+                                        if (radio_station_list.focused_index == 0) {
+                                            is_radio_list_focused = false;
+                                        } else {
+                                            radio_station_list.scroll_up ();
+                                        }
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.DPAD_DOWN:
+                                if (radio_time > last_joy_move + 200) {
+                                    last_joy_move = radio_time;
+                                    if (is_radio_list_focused && radio_station_list != null) {
+                                        radio_station_list.scroll_down ();
+                                    } else {
+                                        is_radio_list_focused = true;
+                                    }
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.A:
+                                if (is_radio_list_focused && radio_station_list != null) {
+                                    var station = radio_station_list.get_focused_station ();
+                                    if (station != null && radio_player != null) {
+                                        start_radio (station);
+                                    }
+                                } else if (is_playing && radio_header_focus == 1) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                } else {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN;
+                                }
+                                break;
+                            case SDL.Input.GameController.Button.B:
+                                if (!is_radio_list_focused) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN;
+                                    radio_header_focus = 0;
                                 }
                                 break;
                         }
@@ -638,6 +747,42 @@ namespace Vinyl {
                                 }
                             }
                         }
+                    } else if (current_screen == Vinyl.Utils.Screen.RADIO) {
+                        if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
+                            if (e.caxis.value < -8000) {
+                                if (current_time > last_joy_move + 200) {
+                                    if (is_radio_list_focused && radio_station_list != null) {
+                                        if (radio_station_list.focused_index == 0) {
+                                            is_radio_list_focused = false;
+                                        } else {
+                                            radio_station_list.scroll_up ();
+                                        }
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            } else if (e.caxis.value > 8000) {
+                                if (current_time > last_joy_move + 200) {
+                                    if (is_radio_list_focused && radio_station_list != null) {
+                                        radio_station_list.scroll_down ();
+                                    } else {
+                                        is_radio_list_focused = true;
+                                    }
+                                    last_joy_move = current_time;
+                                }
+                            }
+                        } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
+                            if (current_time > last_joy_move + 200) {
+                                if (!is_radio_list_focused && is_playing) {
+                                    if (e.caxis.value < -8000) {
+                                        radio_header_focus = 0;
+                                        last_joy_move = current_time;
+                                    } else if (e.caxis.value > 8000) {
+                                        radio_header_focus = 1;
+                                        last_joy_move = current_time;
+                                    }
+                                }
+                            }
+                        }
                     } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
                         if (now_playing_focusable_widgets != null) {
                             if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
@@ -721,6 +866,22 @@ namespace Vinyl {
                     main_toolbar_focused = is_playing;
                     main_toolbar_index = is_playing ? 1 : 0;
                 }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO) {
+                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                if (screen_offset_x <= -SCREEN_WIDTH) {
+                    screen_offset_x = -SCREEN_WIDTH;
+                    current_screen = Vinyl.Utils.Screen.RADIO;
+                    is_radio_list_focused = false;
+                    radio_header_focus = 0;
+                    main_toolbar_focused = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                if (screen_offset_x >= 0) {
+                    screen_offset_x = 0;
+                    current_screen = Vinyl.Utils.Screen.MAIN;
+                    main_toolbar_focused = false;
+                }
             }
             update_focus ();
 
@@ -752,8 +913,15 @@ namespace Vinyl {
             renderer.clear ();
 
             render_main_screen ((int)screen_offset_x);
-            render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
-            render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+
+            if (current_screen == Vinyl.Utils.Screen.RADIO ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN) {
+                render_radio_screen ((int)screen_offset_x + SCREEN_WIDTH);
+            } else {
+                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
+                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+            }
 
             render_header ();
 
@@ -782,6 +950,18 @@ namespace Vinyl {
 
             if (track_list != null) {
                 track_list.render (renderer, font, font_small);
+            }
+        }
+
+        private void render_radio_screen (int x_offset) {
+            var viewport = SDL.Video.Rect () { x = x_offset, y = 0, w = SCREEN_WIDTH, h = SCREEN_HEIGHT };
+            renderer.set_viewport (viewport);
+
+            renderer.set_draw_color (40, 40, 50, 255);
+            renderer.fill_rect (null);
+
+            if (radio_station_list != null) {
+                radio_station_list.render (renderer, font, font_small);
             }
         }
 
@@ -815,6 +995,16 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY
             ) {
                 render_text ("My Music", (SCREEN_WIDTH / 2) - 80, 25, true);
+                back_button.render (renderer);
+                if (is_playing) {
+                    now_playing_button.render (renderer);
+                }
+            } else if (
+                current_screen == Vinyl.Utils.Screen.RADIO ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN
+            ) {
+                render_text ("Radio", (SCREEN_WIDTH / 2) - 50, 25, true);
                 back_button.render (renderer);
                 if (is_playing) {
                     now_playing_button.render (renderer);
@@ -890,6 +1080,27 @@ namespace Vinyl {
                 if (track_list != null) {
                     track_list.is_focused = is_track_list_focused;
                 }
+            } else if (current_screen == Vinyl.Utils.Screen.RADIO) {
+                foreach (var widget in focusable_widgets) {
+                    if (widget is Vinyl.Widgets.MenuButton) {
+                        ((Vinyl.Widgets.MenuButton) widget).focused = false;
+                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                        ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
+                    }
+                }
+
+                if (!is_playing && radio_header_focus != 0) {
+                    radio_header_focus = 0;
+                }
+                if (back_button != null) {
+                    back_button.focused = !is_radio_list_focused && radio_header_focus == 0;
+                }
+                if (now_playing_button != null) {
+                    now_playing_button.focused = !is_radio_list_focused && is_playing && radio_header_focus == 1;
+                }
+                if (radio_station_list != null) {
+                    radio_station_list.is_focused = is_radio_list_focused;
+                }
             } else if (current_screen == Vinyl.Utils.Screen.NOW_PLAYING) {
                 if (now_playing_button != null) {
                     now_playing_button.focused = false;
@@ -905,6 +1116,23 @@ namespace Vinyl {
                         }
                     }
                 }
+            }
+        }
+
+        private void start_radio (Vinyl.Radio.RadioStation station) {
+            if (player != null) {
+                player.stop ();
+            }
+            radio_player.play_station (station);
+            radio_station_list.active_station_code = station.country_code;
+        }
+
+        private void stop_radio () {
+            if (radio_player != null) {
+                radio_player.stop ();
+            }
+            if (radio_station_list != null) {
+                radio_station_list.active_station_code = null;
             }
         }
 
@@ -961,16 +1189,18 @@ namespace Vinyl {
             if (player != null) {
                 player.stop ();
             }
+            if (radio_player != null) {
+                radio_player.stop ();
+            }
 
-            // Release references to all widgets and fonts.
-            // This allows the GC to call the free_functions for the textures and fonts
-            // before we call the SDL_Quit functions.
             exit_button = null;
             back_button = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
             focusable_widgets.clear ();
             focusable_widgets = null;
+            radio_station_list = null;
+            radio_player = null;
             if (now_playing_focusable_widgets != null) {
                 now_playing_focusable_widgets.clear ();
                 now_playing_focusable_widgets = null;
