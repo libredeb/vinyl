@@ -13,6 +13,8 @@ We created Vinyl for music lovers who want to truly connect with their music, br
 
 ![screenshot2](https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot2.png)
 
+![screenshot3](https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot3.png)
+
 ## Compilation
 
    1. Install dependencies:
