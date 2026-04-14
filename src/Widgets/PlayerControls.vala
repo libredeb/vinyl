@@ -111,7 +111,7 @@ namespace Vinyl.Widgets {
             Vinyl.Utils.Drawing.draw_rounded_rect (renderer, bar_rect);
 
             // Render current volume level
-            renderer.set_draw_color (255, 255, 255, 255);
+            renderer.set_draw_color (249, 187, 0, 255);
             int current_volume_width = (int) (bar_width * this.volume_level);
 
             if (current_volume_width > 0) {

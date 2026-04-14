@@ -165,7 +165,7 @@ namespace Vinyl.Widgets {
             var progress_bar_fg = SDL.Video.Rect () {
                 x = progress_x, y = progress_y, w = progress_width_pixels, h = 9
             };
-            renderer.set_draw_color (0, 150, 255, 255);
+            renderer.set_draw_color (255, 157, 17, 255);
             if (progress_width_pixels > 0) {
                 Vinyl.Utils.Drawing.draw_rounded_rect (renderer, progress_bar_fg);
             }

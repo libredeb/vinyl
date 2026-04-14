@@ -82,7 +82,8 @@ sources = [
   'src/Radio/RadioStation.vala',
   'src/Radio/RadioPlayer.vala',
   'src/Widgets/RadioStationRow.vala',
-  'src/Widgets/RadioStationList.vala'
+  'src/Widgets/RadioStationList.vala',
+  'src/Widgets/RadioNowPlaying.vala'
 ]
 
 executable(
@@ -130,6 +131,8 @@ gfx_files = [
     'play_tb.png',
     'playlist_tb.png',
     'radio_icon.png',
+    'radio_noart_remote.png',
+    'connecting.png',
     'search_icon.png',
     'toolbar_button_bg.png',
     'toolbar_button_bg_press.png',

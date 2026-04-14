@@ -52,7 +52,7 @@ namespace Vinyl.Widgets {
             }
 
             if (focused) {
-                renderer.set_draw_color (53, 132, 228, 255);
+                renderer.set_draw_color (249, 187, 0, 255);
                 var focus_rect = this.rect;
                 renderer.draw_rect (focus_rect);
                 focus_rect.x -= 1; focus_rect.y -= 1; focus_rect.w += 2; focus_rect.h += 2;

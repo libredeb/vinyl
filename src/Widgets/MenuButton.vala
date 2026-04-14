@@ -79,8 +79,8 @@ namespace Vinyl.Widgets {
             var arrow_dest_rect = SDL.Video.Rect () {
                 x = (int)(this.button_rect.x + this.button_rect.w - 50 - 40), // 50 is width, 40 is padding
                 y = (int)(this.button_rect.y + (this.button_rect.h / 2) - (30 / 2)), // 30 is height
-                w = 30,
-                h = 30
+                w = 44,
+                h = 44
             };
             renderer.copy (this.arrow_texture, null, arrow_dest_rect);
         }

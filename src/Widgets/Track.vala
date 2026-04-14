@@ -36,7 +36,7 @@ namespace Vinyl.Widgets {
 
         public void render (SDL.Video.Renderer renderer, SDLTTF.Font font, SDLTTF.Font small_font) {
             if (focused) {
-                renderer.set_draw_color (53, 132, 228, 255); // Highlight color #3584e4
+                renderer.set_draw_color (75, 45, 32, 255); // Highlight color #4b2d20
             } else {
                 renderer.set_draw_color (20, 20, 25, 255); // Default background color
             }

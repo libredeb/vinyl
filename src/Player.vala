@@ -66,7 +66,7 @@ namespace Vinyl {
                         stderr.printf ("  Debugging info: %s\n", debug);
                         break;
                     case Gst.MessageType.EOS:
-                        // Optional: handle end of stream
+                        play_next ();
                         break;
                     default:
                         break;
