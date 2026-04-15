@@ -127,6 +127,7 @@ gfx_files = [
     'arrow_right.png',
     'back_tb.png',
     'exit_tb.png',
+    'sync_tb.png',
     'library_icon.png',
     'play_tb.png',
     'playlist_tb.png',

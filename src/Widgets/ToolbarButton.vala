@@ -71,6 +71,10 @@ namespace Vinyl.Widgets {
             renderer.copy (this.icon_texture, null, icon_dest_rect);
         }
 
+        public void set_x (int x) {
+            this.rect.x = x;
+        }
+
         public bool is_clicked (int x, int y) {
             return (x > this.rect.x && x < this.rect.x + this.rect.w &&
                     y > this.rect.y && y < this.rect.y + this.rect.h);

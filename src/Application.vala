@@ -22,6 +22,7 @@ namespace Vinyl {
 
         private Vinyl.Widgets.ToolbarButton? exit_button;
         private Vinyl.Widgets.ToolbarButton? back_button;
+        private Vinyl.Widgets.ToolbarButton? sync_button;
         private Vinyl.Widgets.ToolbarButton? playlist_button;
         private Vinyl.Widgets.ToolbarButton? now_playing_button;
 
@@ -31,7 +32,7 @@ namespace Vinyl {
         private SDL.Input.GameController? controller;
         private uint last_joy_move = 0; // For joystick move delay
         private bool is_track_list_focused = false;
-        /** 0 = back, 1 = now_playing toolbar (only when is_playing). */
+        /** 0 = back, 1 = sync, 2 = now_playing toolbar (only when is_playing). */
         private int library_header_focus = 0;
         /** Main screen: focus on header toolbar (exit vs now playing) instead of menu body. */
         private bool main_toolbar_focused = false;
@@ -40,6 +41,9 @@ namespace Vinyl {
         private Vinyl.Player? player = null;
         private uint last_progress_update = 0;
         private bool is_playing = false;
+        private Vinyl.Library.LibraryDatabase? library_db;
+        private Vinyl.Library.MusicScanner? music_scanner;
+        private bool is_syncing = false;
 
         private Vinyl.Widgets.TrackList? track_list;
         private Vinyl.Widgets.NowPlaying? now_playing_widget;
@@ -66,7 +70,7 @@ namespace Vinyl {
                 return 1;
             }
 
-            var library_db = new Vinyl.Library.LibraryDatabase ();
+            library_db = new Vinyl.Library.LibraryDatabase ();
             if (!library_db.open ()) {
                 warning ("Library database could not be opened; continuing with an empty library.");
             }
@@ -87,19 +91,8 @@ namespace Vinyl {
             radio_player = new Vinyl.Radio.RadioPlayer ();
             radio_player.state_changed.connect (on_radio_state_changed);
 
-            var music_scanner = new Vinyl.Library.MusicScanner (library_db);
-            music_scanner.sync_library.begin ((obj, res) => {
-                var updated = music_scanner.sync_library.end (res);
-                Idle.add (() => {
-                    if (track_list != null && updated != null) {
-                        track_list.reload_tracks (renderer, updated);
-                        if (player != null) {
-                            player.sync_playlist (track_list.get_tracks ());
-                        }
-                    }
-                    return false;
-                });
-            });
+            music_scanner = new Vinyl.Library.MusicScanner (library_db);
+            trigger_sync_library ();
 
             while (!this.quit) {
                 if (player != null) {
@@ -198,6 +191,14 @@ namespace Vinyl {
                     Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
                     Constants.BACK_TB_ICON_PATH,
                     20, 20, 80, 50 // Compact size
+                );
+
+                sync_button = new Vinyl.Widgets.ToolbarButton (
+                    renderer,
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
+                    Constants.SYNC_TB_ICON_PATH,
+                    SCREEN_WIDTH - 190, 20, 80, 50
                 );
 
                 playlist_button = new Vinyl.Widgets.ToolbarButton (
@@ -302,6 +303,10 @@ namespace Vinyl {
                                 player.play_pause ();
                                 now_playing_widget.player_controls.update_volume (player.get_volume ());
                             }
+                        }
+
+                        if (sync_button != null && sync_button.is_clicked (mouse_x, mouse_y)) {
+                            trigger_sync_library ();
                         }
 
                         if (now_playing_button.is_clicked (mouse_x, mouse_y) && is_playing) {
@@ -523,16 +528,17 @@ namespace Vinyl {
                         switch (e.cbutton.button) {
                             case SDL.Input.GameController.Button.DPAD_LEFT:
                                 if (lib_time > last_joy_move + 200) {
-                                    if (!is_track_list_focused && is_playing && library_header_focus == 1) {
-                                        library_header_focus = 0;
+                                    if (!is_track_list_focused && library_header_focus > 0) {
+                                        library_header_focus--;
                                         last_joy_move = lib_time;
                                     }
                                 }
                                 break;
                             case SDL.Input.GameController.Button.DPAD_RIGHT:
                                 if (lib_time > last_joy_move + 200) {
-                                    if (!is_track_list_focused && is_playing && library_header_focus == 0) {
-                                        library_header_focus = 1;
+                                    int max_focus = is_playing ? 2 : 1;
+                                    if (!is_track_list_focused && library_header_focus < max_focus) {
+                                        library_header_focus++;
                                         last_joy_move = lib_time;
                                     }
                                 }
@@ -580,7 +586,9 @@ namespace Vinyl {
                                         player.play_pause ();
                                         now_playing_widget.player_controls.update_volume (player.get_volume ());
                                     }
-                                } else if (is_playing && library_header_focus == 1) {
+                                } else if (library_header_focus == 1) {
+                                    trigger_sync_library ();
+                                } else if (is_playing && library_header_focus == 2) {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                                 } else {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
@@ -842,12 +850,13 @@ namespace Vinyl {
                             }
                         } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
                             if (current_time > last_joy_move + 200) {
-                                if (!is_track_list_focused && is_playing) {
-                                    if (e.caxis.value < -8000) {
-                                        library_header_focus = 0;
+                                if (!is_track_list_focused) {
+                                    int max_focus = is_playing ? 2 : 1;
+                                    if (e.caxis.value < -8000 && library_header_focus > 0) {
+                                        library_header_focus--;
                                         last_joy_move = current_time;
-                                    } else if (e.caxis.value > 8000) {
-                                        library_header_focus = 1;
+                                    } else if (e.caxis.value > 8000 && library_header_focus < max_focus) {
+                                        library_header_focus++;
                                         last_joy_move = current_time;
                                     }
                                 }
@@ -1001,7 +1010,7 @@ namespace Vinyl {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
                     is_track_list_focused = false;
-                    library_header_focus = is_playing ? 1 : 0;
+                    library_header_focus = is_playing ? 2 : 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
                 screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
@@ -1189,6 +1198,7 @@ namespace Vinyl {
             ) {
                 render_header_text_centered ("My Music", 25);
                 back_button.render (renderer);
+                sync_button.render (renderer);
                 if (is_playing) {
                     now_playing_button.render (renderer);
                 }
@@ -1274,14 +1284,18 @@ namespace Vinyl {
                     }
                 }
 
-                if (!is_playing && library_header_focus != 0) {
-                    library_header_focus = 0;
+                if (!is_playing && library_header_focus == 2) {
+                    library_header_focus = 1;
                 }
                 if (back_button != null) {
                     back_button.focused = !is_track_list_focused && library_header_focus == 0;
                 }
+                if (sync_button != null) {
+                    sync_button.set_x (is_playing ? SCREEN_WIDTH - 190 : SCREEN_WIDTH - 100);
+                    sync_button.focused = !is_track_list_focused && library_header_focus == 1;
+                }
                 if (now_playing_button != null) {
-                    now_playing_button.focused = !is_track_list_focused && is_playing && library_header_focus == 1;
+                    now_playing_button.focused = !is_track_list_focused && is_playing && library_header_focus == 2;
                 }
                 if (track_list != null) {
                     track_list.is_focused = is_track_list_focused;
@@ -1485,6 +1499,24 @@ namespace Vinyl {
             this.is_radio_playing = playing;
         }
 
+        private void trigger_sync_library () {
+            if (is_syncing || music_scanner == null) return;
+            is_syncing = true;
+            music_scanner.sync_library.begin ((obj, res) => {
+                var updated = music_scanner.sync_library.end (res);
+                Idle.add (() => {
+                    if (track_list != null && updated != null) {
+                        track_list.reload_tracks (renderer, updated);
+                        if (player != null) {
+                            player.sync_playlist (track_list.get_tracks ());
+                        }
+                    }
+                    is_syncing = false;
+                    return false;
+                });
+            });
+        }
+
         private void build_radio_now_playing_focusable_widgets () {
             var c = radio_now_playing_widget.player_controls;
             radio_now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
@@ -1510,6 +1542,9 @@ namespace Vinyl {
 
             exit_button = null;
             back_button = null;
+            sync_button = null;
+            music_scanner = null;
+            library_db = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
             focusable_widgets.clear ();
