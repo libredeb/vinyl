@@ -20,4 +20,13 @@ namespace Vinyl.Utils {
         TRANSITION_FROM_RADIO_NOW_PLAYING_TO_RADIO,
         TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN
     }
+
+    public enum InputAction {
+        UP,
+        DOWN,
+        LEFT,
+        RIGHT,
+        CONFIRM,
+        BACK
+    }
 }
