@@ -107,6 +107,20 @@ install_data(
     rename: meson.project_name() + '.desktop'
 )
 
+# Install AppStream metainfo
+install_data(
+    'data' / 'io.github.libredeb.vinyl.metainfo.xml.in',
+    install_dir: get_option('datadir') / 'metainfo',
+    rename: meson.project_name() + '.metainfo.xml'
+)
+
+# Install manual page
+run_command('gzip', '-fk', join_paths('data', meson.project_name() + '.1'), check: true)
+install_data(
+    join_paths('data', meson.project_name() + '.1.gz'),
+    install_dir: join_paths(datadir, 'man', 'man1')
+)
+
 # Install our icons in all the required sizes
 icon_sizes = ['128']
 

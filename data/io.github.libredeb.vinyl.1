@@ -1,0 +1,42 @@
+.TH "Vinyl" "1" "" "Version 0.1.1" "Vinyl Manual Page Documentation"
+.SH NAME
+io.github.libredeb.vinyl \- A fullscreen music experience
+.SH SYNOPSIS
+.PP
+\f[B]io.github.libredeb.vinyl\f[R]
+.SH DESCRIPTION
+Vinyl is a desktop music player that provides a beautiful, fullscreen
+interface to your music library.
+Built with Vala and SDL2, it is designed for those who appreciate a clean
+aesthetic and intuitive control.
+Whether you prefer using your keyboard or a gamepad, Vinyl offers a
+seamless way to navigate your tunes without ever needing to reach for
+a mouse.
+.SH MUSIC LIBRARY
+Music is read from the \f[B]XDG_MUSIC_DIR\f[R] user directory,
+typically \f[I]~/Music\f[R].
+.PP
+Supported formats: \f[B].mp3\f[R], \f[B].flac\f[R], \f[B].ogg\f[R],
+\f[B].wav\f[R].
+.SH FILES
+.TP
+\f[I]$XDG_DATA_HOME/vinyl/library.db\f[R]
+Library database. Typically \f[I]~/.local/share/vinyl/library.db\f[R].
+.TP
+\f[I]$XDG_CACHE_HOME/vinyl/covers\f[R]
+Cover art cache directory. Typically \f[I]~/.cache/vinyl/covers\f[R].
+.SH CONTROLS
+.TP
+\f[B]Keyboard\f[R]
+Full keyboard navigation is supported for browsing and playback.
+.TP
+\f[B]Gamepad\f[R]
+SDL2 game controller support for a couch\-friendly experience.
+.SH BUGS
+Report bugs at \f[I]https://github.com/libredeb/vinyl/issues\f[R].
+.SH AUTHOR
+Juan Pablo Lozano \c
+.MT libredeb@gmail.com
+.ME \c
+.SH SEE ALSO
+Project homepage: \f[I]https://github.com/libredeb/vinyl\f[R]

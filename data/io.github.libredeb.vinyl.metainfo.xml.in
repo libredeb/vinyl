@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- SPDX-FileCopyrightText: 2016 Juan Pablo Lozano <libredeb@gmail.com> -->
+<component type="desktop-application">
+  <id>io.github.libredeb.vinyl</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>GPL-3.0-or-later</project_license>
+
+  <name>Vinyl</name>
+  <summary>A fullscreen music experience</summary>
+  <description>
+    <p>
+      A desktop music player that provides a beautiful, fullscreen interface
+      to your music library. Built for those who appreciate a clean aesthetic
+      and intuitive control.
+    </p>
+    <p>
+      Whether you prefer using your keyboard or a gamepad, Vinyl offers a
+      seamless way to navigate your tunes without ever needing to reach for
+      a mouse. We created Vinyl for music lovers who want to truly connect
+      with their music, bringing back the intentionality of listening to a
+      record.
+    </p>
+  </description>
+
+  <developer id="io.github.libredeb">
+    <name>Juan Pablo Lozano</name>
+  </developer>
+
+  <url type="homepage">https://github.com/libredeb/vinyl</url>
+  <url type="bugtracker">https://github.com/libredeb/vinyl/issues</url>
+  <url type="vcs-browser">https://github.com/libredeb/vinyl</url>
+
+  <branding>
+    <color type="primary" scheme_preference="light">#f9c440</color>
+    <color type="primary" scheme_preference="dark">#813d9c</color>
+  </branding>
+
+  <screenshots>
+    <screenshot type="default">
+      <image>https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot.png</image>
+      <caption>Vinyl main library view</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot2.png</image>
+      <caption>Now playing view</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot3.png</image>
+      <caption>Album browsing</caption>
+    </screenshot>
+    <screenshot>
+      <image>https://cdn.jsdelivr.net/gh/libredeb/vinyl@main/data/screenshot4.png</image>
+      <caption>Radio stations</caption>
+    </screenshot>
+  </screenshots>
+
+  <content_rating type="oars-1.1" />
+
+  <supports>
+    <control>keyboard</control>
+    <control>gamepad</control>
+  </supports>
+
+  <requires>
+    <display_length compare="ge">768</display_length>
+  </requires>
+
+  <keywords>
+    <keyword>music</keyword>
+    <keyword>audio</keyword>
+    <keyword>player</keyword>
+    <keyword>library</keyword>
+    <keyword>fullscreen</keyword>
+    <keyword>gamepad</keyword>
+  </keywords>
+
+  <launchable type="desktop-id">io.github.libredeb.vinyl.desktop</launchable>
+  <provides>
+    <binary>io.github.libredeb.vinyl</binary>
+  </provides>
+
+  <releases>
+    <release version="0.1.1" date="2026-04-16">
+      <description>
+        <p>Initial public release of Vinyl.</p>
+      </description>
+    </release>
+  </releases>
+</component>

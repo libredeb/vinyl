@@ -93,7 +93,7 @@ io.elementary.vala-lint src/
 
 ### Validating AppStream Syntax
 
-To ensure your [AppStream XML file](data/io.github.libredeb.vinyl.appdata.xml.in) is correctly structured, use the `appstream-util` tool from the [AppStream project](https://www.freedesktop.org/software/appstream/docs/).
+To ensure your [AppStream XML file](data/io.github.libredeb.vinyl.metainfo.xml.in) is correctly structured, use the `appstreamcli` tool from the [AppStream project](https://www.freedesktop.org/software/appstream/docs/).
 
 **Installation**
 
@@ -106,7 +106,7 @@ sudo apt install appstream
 Run the following command to validate the syntax of your AppStream XML file:
 
 ```sh
-appstreamcli validate --pedantic data/io.github.libredeb.vinyl.appdata.xml.in
+appstreamcli validate --pedantic data/io.github.libredeb.vinyl.metainfo.xml.in
 ```
 
 ## License
