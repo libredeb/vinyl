@@ -24,5 +24,38 @@ namespace Vinyl.Utils {
                 draw_filled_circle (renderer, (int) rect.x + (int) rect.w - radius, (int) rect.y + radius, radius);
             }
         }
+
+        public static void draw_rounded_rect_r (SDL.Video.Renderer renderer, SDL.Video.Rect rect, int radius) {
+            if (radius <= 0) {
+                renderer.fill_rect (rect);
+                return;
+            }
+            int r = radius;
+            if (r > (int) rect.h / 2) r = (int) rect.h / 2;
+            if (r > (int) rect.w / 2) r = (int) rect.w / 2;
+
+            var center = SDL.Video.Rect () {
+                x = rect.x, y = (int) rect.y + r,
+                w = rect.w, h = (int) rect.h - 2 * r
+            };
+            renderer.fill_rect (center);
+
+            var top = SDL.Video.Rect () {
+                x = (int) rect.x + r, y = rect.y,
+                w = (int) rect.w - 2 * r, h = r
+            };
+            renderer.fill_rect (top);
+
+            var bottom = SDL.Video.Rect () {
+                x = (int) rect.x + r, y = (int) rect.y + (int) rect.h - r,
+                w = (int) rect.w - 2 * r, h = r
+            };
+            renderer.fill_rect (bottom);
+
+            draw_filled_circle (renderer, (int) rect.x + r, (int) rect.y + r, r);
+            draw_filled_circle (renderer, (int) rect.x + (int) rect.w - 1 - r, (int) rect.y + r, r);
+            draw_filled_circle (renderer, (int) rect.x + r, (int) rect.y + (int) rect.h - 1 - r, r);
+            draw_filled_circle (renderer, (int) rect.x + (int) rect.w - 1 - r, (int) rect.y + (int) rect.h - 1 - r, r);
+        }
     }
 }

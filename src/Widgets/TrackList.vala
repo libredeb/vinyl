@@ -26,14 +26,10 @@ namespace Vinyl.Widgets {
         private void compute_item_height (int count) {
             int base_height = 80;
             this.visible_items = (int) this.rect.h / base_height;
-            if (count > 0 && count < this.visible_items) {
-                this.visible_items = count;
+            if (this.visible_items < 1) {
+                this.visible_items = 1;
             }
-            if (this.visible_items > 0) {
-                this.item_height = (int) this.rect.h / this.visible_items;
-            } else {
-                this.item_height = base_height;
-            }
+            this.item_height = (int) this.rect.h / this.visible_items;
         }
 
         /** Replaces the library contents (e.g. after background DB sync). */

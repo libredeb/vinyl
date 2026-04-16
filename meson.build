@@ -83,7 +83,8 @@ sources = [
   'src/Radio/RadioPlayer.vala',
   'src/Widgets/RadioStationRow.vala',
   'src/Widgets/RadioStationList.vala',
-  'src/Widgets/RadioNowPlaying.vala'
+  'src/Widgets/RadioNowPlaying.vala',
+  'src/Widgets/OnScreenKeyboard.vala'
 ]
 
 executable(
@@ -128,6 +129,9 @@ gfx_files = [
     'back_tb.png',
     'exit_tb.png',
     'sync_tb.png',
+    'clear-all.png',
+    'clear_key.png',
+    'space_bar.png',
     'library_icon.png',
     'play_tb.png',
     'playlist_tb.png',

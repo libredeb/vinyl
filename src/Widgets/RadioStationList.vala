@@ -19,11 +19,10 @@ namespace Vinyl.Widgets {
             int x, int y, int w, int h
         ) {
             this.rect = { x, y, w, h };
-            int count = stations.size;
             int base_height = 80;
             this.visible_items = h / base_height;
-            if (count > 0 && count <= this.visible_items) {
-                this.visible_items = count;
+            if (this.visible_items < 1) {
+                this.visible_items = 1;
             }
             this.item_height = h / this.visible_items;
             foreach (var station in stations) {
