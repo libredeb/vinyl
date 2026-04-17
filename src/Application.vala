@@ -12,6 +12,7 @@ namespace Vinyl {
         private SDL.Video.Window window;
         private SDL.Video.Renderer renderer;
         private bool quit = false;
+        private bool windowed = false;
 
         private SDLTTF.Font? font;
         private SDLTTF.Font? font_bold;
@@ -71,6 +72,12 @@ namespace Vinyl {
         private bool now_playing_return_to_search = false;
 
         public int run (string[] args) {
+            foreach (var arg in args) {
+                if (arg == "-w" || arg == "--windowed") {
+                    this.windowed = true;
+                }
+            }
+
             if (!this.init ()) {
                 return 1;
             }
@@ -167,10 +174,14 @@ namespace Vinyl {
                 }
             }
 
+            var window_flags = this.windowed
+                ? SDL.Video.WindowFlags.SHOWN
+                : SDL.Video.WindowFlags.FULLSCREEN_DESKTOP;
             this.window = new SDL.Video.Window (
-                Config.PROJECT_NAME, 0, 0,
+                Config.PROJECT_NAME,
+                (int) SDL.Video.Window.POS_CENTERED, (int) SDL.Video.Window.POS_CENTERED,
                 SCREEN_WIDTH, SCREEN_HEIGHT,
-                SDL.Video.WindowFlags.SHOWN
+                window_flags
             );
             if (window == null) {
                 warning ("The window could not be created. Error: %s", SDL.get_error ());
@@ -178,13 +189,16 @@ namespace Vinyl {
             }
 
             renderer = SDL.Video.Renderer.create (
-                window, 0,
-                SDL.Video.RendererFlags.ACCELERATED | SDL.Video.RendererFlags.PRESENTVSYNC
+                window, -1,
+                SDL.Video.RendererFlags.SOFTWARE
             );
             if (renderer == null) {
                 warning ("The renderer could not be created. Error: %s", SDL.get_error ());
                 return false;
             }
+
+            // Keep the 720×720 logical canvas regardless of physical screen size
+            renderer.set_logical_size (SCREEN_WIDTH, SCREEN_HEIGHT);
 
             return true;
         }

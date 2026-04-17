@@ -55,6 +55,14 @@ We created Vinyl for music lovers who want to truly connect with their music, br
       sudo ninja uninstall
       ```
 
+## Usage
+
+By default Vinyl launches in fullscreen. To run in windowed mode pass the `-w` or `--windowed` flag:
+
+```sh
+io.github.libredeb.vinyl --windowed
+```
+
 ## Music library
 
 Music is read from **one** root directory, which is `XDG_MUSIC_DIR` (the music user directory) typically `~/Music`.

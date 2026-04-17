@@ -43,7 +43,7 @@ dependencies = [
     dependency('sdl2', version: '>=2.26.0'),
     dependency('SDL2_image', version: '>=2.6.0'),
     dependency('SDL2_ttf', version: '>=2.20.0'),
-    dependency('taglib_c', version: '>=1.13.0')
+    dependency('taglib_c', version: '>=1.11')
 ]
 
 # Add math library for drawing rounded rectangles
