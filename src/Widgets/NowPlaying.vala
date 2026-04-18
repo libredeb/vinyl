@@ -13,6 +13,8 @@ namespace Vinyl.Widgets {
         private float progress = 0.5f; // 0.0 to 1.0
         private SDL.Video.Texture? progressbar_slider_texture;
 
+        public IconButton favorite_button;
+
         private int x;
         private int y;
         private int width;
@@ -55,6 +57,15 @@ namespace Vinyl.Widgets {
             if (this.progressbar_slider_texture == null) {
                 warning ("Error loading progressbar slider image: %s", SDL.get_error ());
             }
+
+            string fav_icon = track.favorite
+                ? Constants.FAVORITES_ON_ICON_PATH
+                : Constants.FAVORITES_OFF_ICON_PATH;
+            this.favorite_button = new IconButton (
+                renderer, fav_icon,
+                x + width - 45 - 20, y + 10,
+                45, 34
+            );
         }
 
         public void update_track (Vinyl.Library.Track new_track) {
@@ -70,6 +81,18 @@ namespace Vinyl.Widgets {
             } else {
                 this.cover_texture = null;
             }
+            update_favorite_icon ();
+        }
+
+        public void update_favorite_icon () {
+            string icon = track.favorite
+                ? Constants.FAVORITES_ON_ICON_PATH
+                : Constants.FAVORITES_OFF_ICON_PATH;
+            favorite_button.set_texture (renderer, icon);
+        }
+
+        public Vinyl.Library.Track get_track () {
+            return this.track;
         }
 
         public void update_progress (int64 position, int64 duration) {
@@ -131,6 +154,9 @@ namespace Vinyl.Widgets {
             SDLTTF.Font? font_bold,
             SDLTTF.Font? font_small
         ) {
+            // Render favorite button
+            favorite_button.render (renderer);
+
             // Render cover
             int art_size = 300;
             int art_x = this.x + (this.width - art_size) / 2;

@@ -12,6 +12,7 @@ namespace Vinyl.Library {
         public string? album_art_path { get; set; }
         /** SQLite row id; used to keep playback in sync after library refresh. */
         public int64 db_row_id { get; set; default = -1; }
+        public bool favorite { get; set; default = false; }
 
         public Track (
             string file_path,
@@ -19,7 +20,8 @@ namespace Vinyl.Library {
             string artist,
             string album,
             string? album_art_path,
-            int64 db_row_id = -1
+            int64 db_row_id = -1,
+            bool favorite = false
         ) {
             this.file_path = file_path;
             this.title = title;
@@ -27,6 +29,7 @@ namespace Vinyl.Library {
             this.album = album;
             this.album_art_path = album_art_path;
             this.db_row_id = db_row_id;
+            this.favorite = favorite;
         }
     }
 }

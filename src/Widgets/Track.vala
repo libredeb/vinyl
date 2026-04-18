@@ -7,6 +7,7 @@ namespace Vinyl.Widgets {
     public class Track : GLib.Object {
         public Vinyl.Library.Track track { get; private set; }
         private SDL.Video.Texture? album_art_texture;
+        private static SDL.Video.Texture? favorites_on_texture = null;
         public SDL.Video.Rect rect;
         public bool focused = false;
 
@@ -22,7 +23,7 @@ namespace Vinyl.Widgets {
                 }
             }
 
-            if (surface == null) { // If album art failed or didn't exist, load default
+            if (surface == null) {
                 surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
                 if (surface == null) {
                     warning ("Could not load default album art icon: %s", SDL.get_error ());
@@ -31,6 +32,10 @@ namespace Vinyl.Widgets {
 
             if (surface != null) {
                 this.album_art_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+            }
+
+            if (favorites_on_texture == null) {
+                favorites_on_texture = SDLImage.load_texture (renderer, Constants.FAVORITES_ON_ICON_PATH);
             }
         }
 
@@ -54,14 +59,23 @@ namespace Vinyl.Widgets {
                 renderer.copy (this.album_art_texture, null, art_dest_rect);
             }
 
+            int fav_area = this.track.favorite ? 45 + 10 : 0;
             int text_x = (int)(art_dest_rect.x + art_dest_rect.w + 20);
-            int max_text_w = this.rect.x + (int) this.rect.w - text_x - 20;
+            int max_text_w = this.rect.x + (int) this.rect.w - text_x - 20 - fav_area;
 
             render_ellipsized (renderer, font, this.track.title, {255, 255, 255, 255},
                 text_x, (int)(this.rect.y + (this.rect.h / 2)), max_text_w, true);
 
             render_ellipsized (renderer, small_font, this.track.artist, {200, 200, 200, 255},
                 text_x, (int)(this.rect.y + (this.rect.h / 2)), max_text_w, false);
+
+            if (this.track.favorite && favorites_on_texture != null) {
+                int fav_w = 45;
+                int fav_h = 34;
+                int fav_x = this.rect.x + (int) this.rect.w - fav_w - 15;
+                int fav_y = (int)(this.rect.y + (this.rect.h - fav_h) / 2);
+                renderer.copy (favorites_on_texture, null, {fav_x, fav_y, fav_w, fav_h});
+            }
         }
 
         private void render_ellipsized (

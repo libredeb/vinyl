@@ -145,6 +145,8 @@ gfx_files = [
     'clear-all.png',
     'clear_key.png',
     'space_bar.png',
+    'favorites_on.png',
+    'favorites_off.png',
     'library_icon.png',
     'play_tb.png',
     'playlist_tb.png',

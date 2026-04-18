@@ -20,6 +20,8 @@ namespace Constants {
     public const string CLEAR_ALL_ICON_PATH = VINYL_DATADIR + "/gfx/clear-all.png";
     public const string CLEAR_KEY_ICON_PATH = VINYL_DATADIR + "/gfx/clear_key.png";
     public const string SPACE_BAR_ICON_PATH = VINYL_DATADIR + "/gfx/space_bar.png";
+    public const string FAVORITES_ON_ICON_PATH = VINYL_DATADIR + "/gfx/favorites_on.png";
+    public const string FAVORITES_OFF_ICON_PATH = VINYL_DATADIR + "/gfx/favorites_off.png";
     public const string PLAY_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_play.png";
     public const string PAUSE_TB_ICON_PATH = VINYL_DATADIR + "/gfx/toolbar_pause.png";
     public const string NOW_PLAYING_TB_ICON_PATH = VINYL_DATADIR + "/gfx/play_tb.png";

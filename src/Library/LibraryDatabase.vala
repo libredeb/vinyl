@@ -70,7 +70,8 @@ namespace Vinyl.Library {
                     title TEXT NOT NULL,
                     artist TEXT NOT NULL,
                     album TEXT NOT NULL,
-                    cover_path TEXT
+                    cover_path TEXT,
+                    favorite INTEGER NOT NULL DEFAULT 0
                 );
             """;
             if (this.db.exec (CREATE_TBL, null, out err_msg) != Sqlite.OK) {
@@ -85,7 +86,17 @@ namespace Vinyl.Library {
                 warning ("Library schema (index): %s", err_msg);
                 return false;
             }
+            migrate_add_favorite_column ();
             return true;
+        }
+
+        private void migrate_add_favorite_column () {
+            string err_msg;
+            this.db.exec (
+                "ALTER TABLE tracks ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0;",
+                null,
+                out err_msg
+            );
         }
 
         public Gee.ArrayList<StoredTrackMeta> load_all_meta () {
@@ -131,7 +142,7 @@ namespace Vinyl.Library {
             Sqlite.Statement stmt;
             string tail;
             string q = """
-                SELECT id, path, title, artist, album, cover_path
+                SELECT id, path, title, artist, album, cover_path, favorite
                 FROM tracks
                 ORDER BY artist COLLATE NOCASE, album COLLATE NOCASE, path COLLATE NOCASE
             """;
@@ -147,9 +158,25 @@ namespace Vinyl.Library {
                 string album = stmt.column_text (4) ?? "";
                 unowned string? c = stmt.column_text (5);
                 string? cover = (c != null && c[0] != '\0') ? (!) c : null;
-                list.add (new Track (path, title, artist, album, cover, id));
+                bool fav = stmt.column_int (6) != 0;
+                list.add (new Track (path, title, artist, album, cover, id, fav));
             }
             return list;
+        }
+
+        public bool toggle_favorite (int64 track_id, bool favorite) {
+            if (this.db == null) {
+                return false;
+            }
+            Sqlite.Statement stmt;
+            string tail;
+            string q = "UPDATE tracks SET favorite = ? WHERE id = ?;";
+            if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                return false;
+            }
+            stmt.bind_int (1, favorite ? 1 : 0);
+            stmt.bind_int64 (2, track_id);
+            return stmt.step () == Sqlite.DONE;
         }
 
         public bool transaction_begin () {

@@ -37,6 +37,10 @@ namespace Vinyl {
         private int focused_widget_index = 0;
         private SDL.Input.GameController? controller;
         private uint last_joy_move = 0; // For joystick move delay
+        private bool axis_y_active = false;
+        private bool axis_x_active = false;
+        private Vinyl.Utils.InputAction? held_direction = null;
+        private uint held_direction_since = 0;
         private bool is_track_list_focused = false;
         /** 0 = back, 1 = sync, 2 = now_playing toolbar (only when is_playing). */
         private int library_header_focus = 0;
@@ -131,6 +135,7 @@ namespace Vinyl {
                     radio_player.handle_messages ();
                 }
                 this.handle_events ();
+                this.process_held_dpad ();
                 this.update ();
                 this.render ();
                 SDL.Timer.delay (16); // Limited to ~60 FPS
@@ -389,6 +394,9 @@ namespace Vinyl {
                             }
                         } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
+                        } else if (now_playing_widget != null &&
+                                   now_playing_widget.favorite_button.is_clicked (mouse_x, mouse_y)) {
+                            toggle_current_track_favorite ();
                         } else if (now_playing_widget != null) {
                             var controls = now_playing_widget.player_controls;
                             if (controls.prev_button.is_clicked (mouse_x, mouse_y)) {
@@ -610,27 +618,87 @@ namespace Vinyl {
                             cb_action = Vinyl.Utils.InputAction.BACK; break;
                     }
                     if (cb_action != null) {
+                        set_held_direction (cb_action);
                         handle_input_action (cb_action);
+                    }
+                } else if (e.type == SDL.EventType.CONTROLLERBUTTONUP) {
+                    switch (e.cbutton.button) {
+                        case SDL.Input.GameController.Button.DPAD_UP:
+                        case SDL.Input.GameController.Button.DPAD_DOWN:
+                        case SDL.Input.GameController.Button.DPAD_LEFT:
+                        case SDL.Input.GameController.Button.DPAD_RIGHT:
+                            held_direction = null;
+                            break;
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERAXISMOTION) {
                     Vinyl.Utils.InputAction? axis_action = null;
                     if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTY) {
-                        if (e.caxis.value < -8000) {
-                            axis_action = Vinyl.Utils.InputAction.UP;
-                        } else if (e.caxis.value > 8000) {
-                            axis_action = Vinyl.Utils.InputAction.DOWN;
+                        bool in_zone = e.caxis.value < -8000 || e.caxis.value > 8000;
+                        if (in_zone) {
+                            Vinyl.Utils.InputAction dir = (e.caxis.value < -8000)
+                                ? Vinyl.Utils.InputAction.UP
+                                : Vinyl.Utils.InputAction.DOWN;
+                            if (!axis_y_active) {
+                                axis_action = dir;
+                            }
+                            axis_y_active = true;
+                            set_held_direction (dir);
+                        } else {
+                            if (axis_y_active) {
+                                clear_held_direction_if (Vinyl.Utils.InputAction.UP);
+                                clear_held_direction_if (Vinyl.Utils.InputAction.DOWN);
+                            }
+                            axis_y_active = false;
                         }
                     } else if (e.caxis.axis == SDL.Input.GameController.Axis.LEFTX) {
-                        if (e.caxis.value < -8000) {
-                            axis_action = Vinyl.Utils.InputAction.LEFT;
-                        } else if (e.caxis.value > 8000) {
-                            axis_action = Vinyl.Utils.InputAction.RIGHT;
+                        bool in_zone = e.caxis.value < -8000 || e.caxis.value > 8000;
+                        if (in_zone) {
+                            Vinyl.Utils.InputAction dir = (e.caxis.value < -8000)
+                                ? Vinyl.Utils.InputAction.LEFT
+                                : Vinyl.Utils.InputAction.RIGHT;
+                            if (!axis_x_active) {
+                                axis_action = dir;
+                            }
+                            axis_x_active = true;
+                            set_held_direction (dir);
+                        } else {
+                            if (axis_x_active) {
+                                clear_held_direction_if (Vinyl.Utils.InputAction.LEFT);
+                                clear_held_direction_if (Vinyl.Utils.InputAction.RIGHT);
+                            }
+                            axis_x_active = false;
                         }
                     }
                     if (axis_action != null) {
                         handle_input_action (axis_action);
                     }
                 }
+            }
+        }
+
+        private void set_held_direction (Vinyl.Utils.InputAction action) {
+            if (action == Vinyl.Utils.InputAction.UP ||
+                action == Vinyl.Utils.InputAction.DOWN ||
+                action == Vinyl.Utils.InputAction.LEFT ||
+                action == Vinyl.Utils.InputAction.RIGHT) {
+                held_direction = action;
+                held_direction_since = SDL.Timer.get_ticks ();
+            }
+        }
+
+        private void clear_held_direction_if (Vinyl.Utils.InputAction action) {
+            if (held_direction == action) {
+                held_direction = null;
+            }
+        }
+
+        private void process_held_dpad () {
+            if (held_direction == null || !is_in_scrollable_list ()) {
+                return;
+            }
+            uint now = SDL.Timer.get_ticks ();
+            if (now > held_direction_since + 200) {
+                handle_input_action (held_direction);
             }
         }
 
@@ -854,6 +922,12 @@ namespace Vinyl {
             if (radio_now_playing_widget != null) {
                 radio_now_playing_widget.render (renderer, font, font_bold, font_small);
             }
+        }
+
+        private bool is_in_scrollable_list () {
+            return (current_screen == Vinyl.Utils.Screen.LIBRARY && is_track_list_focused) ||
+                   (current_screen == Vinyl.Utils.Screen.RADIO && is_radio_list_focused) ||
+                   (current_screen == Vinyl.Utils.Screen.SEARCH && search_focus_zone >= 2);
         }
 
         private bool is_in_search_graph () {
@@ -1460,12 +1534,13 @@ namespace Vinyl {
                         if (now_playing_focusable_widgets != null &&
                             current_time > last_joy_move + 200) {
                             last_joy_move = current_time;
-                            if (now_playing_focused_widget_index <= 1) {
-                                now_playing_focused_widget_index =
-                                    (now_playing_focused_widget_index == 0) ? 1 : 0;
-                            } else {
+                            if (now_playing_focused_widget_index == 0) {
+                                now_playing_focused_widget_index = 2;
+                            } else if (now_playing_focused_widget_index == 2) {
+                                now_playing_focused_widget_index = 0;
+                            } else if (now_playing_focused_widget_index >= 3) {
                                 now_playing_focused_widget_index--;
-                                if (now_playing_focused_widget_index < 2) {
+                                if (now_playing_focused_widget_index < 3) {
                                     now_playing_focused_widget_index =
                                         now_playing_focusable_widgets.size - 1;
                                 }
@@ -1476,14 +1551,15 @@ namespace Vinyl {
                         if (now_playing_focusable_widgets != null &&
                             current_time > last_joy_move + 200) {
                             last_joy_move = current_time;
-                            if (now_playing_focused_widget_index <= 1) {
-                                now_playing_focused_widget_index =
-                                    (now_playing_focused_widget_index == 0) ? 1 : 0;
-                            } else {
+                            if (now_playing_focused_widget_index == 0) {
+                                now_playing_focused_widget_index = 2;
+                            } else if (now_playing_focused_widget_index == 2) {
+                                now_playing_focused_widget_index = 0;
+                            } else if (now_playing_focused_widget_index >= 3) {
                                 now_playing_focused_widget_index++;
                                 if (now_playing_focused_widget_index >=
                                     now_playing_focusable_widgets.size) {
-                                    now_playing_focused_widget_index = 2;
+                                    now_playing_focused_widget_index = 3;
                                 }
                             }
                         }
@@ -1492,7 +1568,9 @@ namespace Vinyl {
                         if (now_playing_focusable_widgets != null &&
                             current_time > last_joy_move + 200) {
                             last_joy_move = current_time;
-                            if (now_playing_focused_widget_index >= 2) {
+                            if (now_playing_focused_widget_index >= 3) {
+                                now_playing_focused_widget_index = 1;
+                            } else if (now_playing_focused_widget_index == 1) {
                                 now_playing_focused_widget_index = 0;
                             }
                         }
@@ -1501,8 +1579,11 @@ namespace Vinyl {
                         if (now_playing_focusable_widgets != null &&
                             current_time > last_joy_move + 200) {
                             last_joy_move = current_time;
-                            if (now_playing_focused_widget_index <= 1) {
-                                now_playing_focused_widget_index = 2;
+                            if (now_playing_focused_widget_index == 0 ||
+                                now_playing_focused_widget_index == 2) {
+                                now_playing_focused_widget_index = 1;
+                            } else if (now_playing_focused_widget_index == 1) {
+                                now_playing_focused_widget_index = 5;
                             }
                         }
                         break;
@@ -1515,6 +1596,8 @@ namespace Vinyl {
                                 } else {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
                                 }
+                            } else if (w == now_playing_widget.favorite_button) {
+                                toggle_current_track_favorite ();
                             } else if (w == playlist_button) {
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
                             } else if (w == now_playing_widget.player_controls.prev_button) {
@@ -1914,16 +1997,17 @@ namespace Vinyl {
         private void build_now_playing_focusable_widgets () {
             var c = now_playing_widget.player_controls;
             now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
-            now_playing_focusable_widgets.add (back_button);
-            now_playing_focusable_widgets.add (playlist_button);
-            now_playing_focusable_widgets.add (c.prev_button);
-            now_playing_focusable_widgets.add (c.rewind_button);
-            now_playing_focusable_widgets.add (c.play_pause_button);
-            now_playing_focusable_widgets.add (c.forward_button);
-            now_playing_focusable_widgets.add (c.next_button);
-            now_playing_focusable_widgets.add (c.volume_down_button);
-            now_playing_focusable_widgets.add (c.volume_up_button);
-            now_playing_focused_widget_index = 4; // Focus play button
+            now_playing_focusable_widgets.add (back_button);               // 0
+            now_playing_focusable_widgets.add (now_playing_widget.favorite_button); // 1
+            now_playing_focusable_widgets.add (playlist_button);           // 2
+            now_playing_focusable_widgets.add (c.prev_button);             // 3
+            now_playing_focusable_widgets.add (c.rewind_button);           // 4
+            now_playing_focusable_widgets.add (c.play_pause_button);       // 5
+            now_playing_focusable_widgets.add (c.forward_button);          // 6
+            now_playing_focusable_widgets.add (c.next_button);             // 7
+            now_playing_focusable_widgets.add (c.volume_down_button);      // 8
+            now_playing_focusable_widgets.add (c.volume_up_button);        // 9
+            now_playing_focused_widget_index = 5;
         }
 
         /** Renders bold text centered in the header area between the side buttons, with ellipsis if needed. */
@@ -2057,6 +2141,16 @@ namespace Vinyl {
             long count = s.char_count ();
             if (count <= 1) return "";
             return s.substring (0, s.index_of_nth_char (count - 1));
+        }
+
+        private void toggle_current_track_favorite () {
+            if (now_playing_widget == null) return;
+            var track = now_playing_widget.get_track ();
+            track.favorite = !track.favorite;
+            now_playing_widget.update_favorite_icon ();
+            if (library_db != null && track.db_row_id >= 0) {
+                library_db.toggle_favorite (track.db_row_id, track.favorite);
+            }
         }
 
         private void cleanup () {
