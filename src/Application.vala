@@ -11,8 +11,13 @@ namespace Vinyl {
 
         private SDL.Video.Window window;
         private SDL.Video.Renderer renderer;
+        private SDL.Video.Texture canvas;
         private bool quit = false;
         private bool windowed = false;
+
+        private int display_offset_x = 0;
+        private int display_offset_y = 0;
+        private int display_scaled_size = SCREEN_WIDTH;
 
         private SDLTTF.Font? font;
         private SDLTTF.Font? font_bold;
@@ -197,10 +202,38 @@ namespace Vinyl {
                 return false;
             }
 
-            // Keep the 720×720 logical canvas regardless of physical screen size
-            renderer.set_logical_size (SCREEN_WIDTH, SCREEN_HEIGHT);
+            canvas = SDL.Video.Texture.create (
+                renderer,
+                SDL.Video.PixelRAWFormat.RGBA8888,
+                (int) SDL.Video.TextureAccess.TARGET,
+                SCREEN_WIDTH, SCREEN_HEIGHT
+            );
+            if (canvas == null) {
+                warning ("The canvas texture could not be created. Error: %s", SDL.get_error ());
+                return false;
+            }
+
+            recalculate_display_scaling ();
 
             return true;
+        }
+
+        private void recalculate_display_scaling () {
+            int phys_w, phys_h;
+            renderer.get_output_size (out phys_w, out phys_h);
+
+            double scale = double.min (
+                (double) phys_w / SCREEN_WIDTH,
+                (double) phys_h / SCREEN_HEIGHT
+            );
+            display_scaled_size = (int) (SCREEN_WIDTH * scale);
+            display_offset_x = (phys_w - display_scaled_size) / 2;
+            display_offset_y = (phys_h - display_scaled_size) / 2;
+        }
+
+        private void map_mouse_to_logical (ref int x, ref int y) {
+            x = (int) (((double) (x - display_offset_x)) / display_scaled_size * SCREEN_WIDTH);
+            y = (int) (((double) (y - display_offset_y)) / display_scaled_size * SCREEN_HEIGHT);
         }
 
         private bool load_media () {
@@ -284,6 +317,7 @@ namespace Vinyl {
                     int mouse_x = 0;
                     int mouse_y = 0;
                     SDL.Input.Cursor.get_state (ref mouse_x, ref mouse_y);
+                    map_mouse_to_logical (ref mouse_x, ref mouse_y);
 
                     if (current_screen == Vinyl.Utils.Screen.MAIN) {
                         if (exit_button.is_clicked (mouse_x, mouse_y)) {
@@ -735,6 +769,7 @@ namespace Vinyl {
         }
 
         private void render () {
+            renderer.render_target = canvas;
             renderer.set_draw_color (0, 0, 0, 255);
             renderer.clear ();
 
@@ -761,6 +796,16 @@ namespace Vinyl {
 
             renderer.set_viewport (null);
 
+            renderer.render_target = null;
+            renderer.set_draw_color (0, 0, 0, 255);
+            renderer.clear ();
+            var dest = SDL.Video.Rect () {
+                x = display_offset_x,
+                y = display_offset_y,
+                w = display_scaled_size,
+                h = display_scaled_size
+            };
+            renderer.copy (canvas, null, dest);
             renderer.present ();
         }
 
