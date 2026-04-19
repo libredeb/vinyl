@@ -9,6 +9,10 @@ namespace Constants {
     public const string BACK_ICON_PATH = VINYL_DATADIR + "/gfx/back_icon.png";
     public const string EXIT_ICON_PATH = VINYL_DATADIR + "/gfx/exit_icon.png";
     public const string LIBRARY_ICON_PATH = VINYL_DATADIR + "/gfx/library_icon.png";
+    public const string ALL_SONGS_ICON_PATH = VINYL_DATADIR + "/gfx/all_songs.png";
+    public const string FAVORITES_ICON_PATH = VINYL_DATADIR + "/gfx/favorites.png";
+    public const string ARTISTS_ICON_PATH = VINYL_DATADIR + "/gfx/artists.png";
+    public const string ALBUMS_ICON_PATH = VINYL_DATADIR + "/gfx/albums.png";
     public const string RADIO_ICON_PATH = VINYL_DATADIR + "/gfx/radio_icon.png";
     public const string RADIO_NOART_REMOTE_ICON_PATH = VINYL_DATADIR + "/gfx/radio_noart_remote.png";
     public const string CONNECTING_ICON_PATH = VINYL_DATADIR + "/gfx/connecting.png";

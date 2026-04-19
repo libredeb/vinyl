@@ -84,7 +84,8 @@ sources = [
   'src/Widgets/RadioStationRow.vala',
   'src/Widgets/RadioStationList.vala',
   'src/Widgets/RadioNowPlaying.vala',
-  'src/Widgets/OnScreenKeyboard.vala'
+  'src/Widgets/OnScreenKeyboard.vala',
+  'src/Widgets/CategoryList.vala'
 ]
 
 executable(
@@ -148,6 +149,10 @@ gfx_files = [
     'favorites_on.png',
     'favorites_off.png',
     'library_icon.png',
+    'all_songs.png',
+    'favorites.png',
+    'artists.png',
+    'albums.png',
     'play_tb.png',
     'playlist_tb.png',
     'radio_icon.png',

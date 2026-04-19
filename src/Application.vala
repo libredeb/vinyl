@@ -71,6 +71,19 @@ namespace Vinyl {
         private int radio_now_playing_focused_widget_index = 0;
         private bool is_radio_playing = false;
 
+        private Gee.ArrayList<Vinyl.Widgets.MenuButton> library_menu_buttons;
+        private int library_menu_focused_index = 0;
+        private bool library_menu_toolbar_focused = false;
+        /** 0 = back, 1 = now_playing (only when any_playing). */
+        private int library_menu_header_focus = 0;
+
+        private string library_category = "all_songs";
+        private bool is_category_browsing = false;
+        private Vinyl.Widgets.CategoryList? category_list;
+        private bool is_category_list_focused = false;
+        /** 0 = back, 1 = now_playing (only when any_playing). */
+        private int category_header_focus = 0;
+
         private string search_text = "";
         private Vinyl.Widgets.OnScreenKeyboard? search_keyboard;
         private Vinyl.Widgets.TrackList? search_track_list;
@@ -300,6 +313,24 @@ namespace Vinyl {
                     0, 360, SCREEN_WIDTH, 120
                 ));
 
+                library_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ALL_SONGS_ICON_PATH, "all_songs", "All Songs",
+                    0, 120, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.FAVORITES_ICON_PATH, "favorites", "Favorites",
+                    0, 240, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ARTISTS_ICON_PATH, "artists", "Artists",
+                    0, 360, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ALBUMS_ICON_PATH, "albums", "Albums",
+                    0, 480, SCREEN_WIDTH, 120
+                ));
+
                 // Menu entries first (vertical flow), exit last so D-pad down advances logically
                 focusable_widgets = new Gee.ArrayList<Object> ();
                 focusable_widgets.add_all (main_menu_buttons);
@@ -335,7 +366,7 @@ namespace Vinyl {
                                 focused_widget_index = focusable_widgets.index_of (button);
 
                                 if (button.id == "music") {
-                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU;
                                 } else if (button.id == "radio") {
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                                 } else if (button.id == "search") {
@@ -351,9 +382,47 @@ namespace Vinyl {
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                             }
                         }
+                    } else if (current_screen == Vinyl.Utils.Screen.LIBRARY_MENU) {
+                        if (back_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN;
+                        }
+
+                        for (var i = 0; i < library_menu_buttons.size; i++) {
+                            var lm_button = library_menu_buttons.get (i);
+                            if (lm_button.is_clicked (mouse_x, mouse_y)) {
+                                library_menu_focused_index = i;
+                                activate_library_category (lm_button.id);
+                            }
+                        }
+
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y)) {
+                            if (is_radio_playing && radio_now_playing_widget != null) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING;
+                            } else if (player != null && player.is_playing ()) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                            }
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.CATEGORY_LIST) {
+                        if (back_button.is_clicked (mouse_x, mouse_y)) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU;
+                        }
+                        string? clicked_name = null;
+                        if (category_list != null &&
+                            category_list.is_clicked (mouse_x, mouse_y, out clicked_name)) {
+                            if (clicked_name != null) {
+                                select_category_item ();
+                            }
+                        }
+                        if (now_playing_button.is_clicked (mouse_x, mouse_y)) {
+                            if (is_radio_playing && radio_now_playing_widget != null) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING;
+                            } else if (player != null && player.is_playing ()) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                            }
+                        }
                     } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
-                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU;
                         }
                         Vinyl.Library.Track? track = null;
                         if (track_list != null && track_list.is_clicked (mouse_x, mouse_y, out track)) {
@@ -549,6 +618,24 @@ namespace Vinyl {
                         } else if (e.wheel.y < 0) {
                             radio_station_list.scroll_down ();
                         }
+                    } else if (current_screen == Vinyl.Utils.Screen.LIBRARY_MENU && library_menu_buttons != null) {
+                        if (e.wheel.y > 0) {
+                            if (library_menu_focused_index > 0) {
+                                library_menu_focused_index--;
+                                library_menu_toolbar_focused = false;
+                            }
+                        } else if (e.wheel.y < 0) {
+                            if (library_menu_focused_index < library_menu_buttons.size - 1) {
+                                library_menu_focused_index++;
+                                library_menu_toolbar_focused = false;
+                            }
+                        }
+                    } else if (current_screen == Vinyl.Utils.Screen.CATEGORY_LIST && category_list != null) {
+                        if (e.wheel.y > 0) {
+                            category_list.scroll_up ();
+                        } else if (e.wheel.y < 0) {
+                            category_list.scroll_down ();
+                        }
                     }
                 } else if (e.type == SDL.EventType.KEYDOWN) {
                     bool search_key_handled = false;
@@ -703,38 +790,110 @@ namespace Vinyl {
         }
 
         private void update () {
-            if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f; // Move to the left
+            if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU) {
+                screen_offset_x -= TRANSITION_SPEED / 60.0f;
                 if (screen_offset_x <= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
+                    current_screen = Vinyl.Utils.Screen.LIBRARY_MENU;
+                    library_menu_focused_index = 0;
+                    library_menu_toolbar_focused = false;
+                    main_toolbar_focused = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                if (screen_offset_x >= 0) {
+                    screen_offset_x = 0;
+                    current_screen = Vinyl.Utils.Screen.MAIN;
+                    main_toolbar_focused = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST) {
+                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                if (screen_offset_x <= -SCREEN_WIDTH * 2) {
+                    screen_offset_x = -SCREEN_WIDTH * 2;
+                    current_screen = Vinyl.Utils.Screen.CATEGORY_LIST;
+                    is_category_list_focused = false;
+                    category_header_focus = 0;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                if (screen_offset_x >= -SCREEN_WIDTH) {
+                    screen_offset_x = -SCREEN_WIDTH;
+                    current_screen = Vinyl.Utils.Screen.LIBRARY_MENU;
+                    library_menu_toolbar_focused = false;
+                    is_category_browsing = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY) {
+                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                float lib_target = is_category_browsing
+                    ? -SCREEN_WIDTH * 3
+                    : -SCREEN_WIDTH * 2;
+                if (screen_offset_x <= lib_target) {
+                    screen_offset_x = lib_target;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
                     is_track_list_focused = false;
                     library_header_focus = 0;
-                    main_toolbar_focused = false;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU) {
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                if (is_category_browsing) {
+                    if (screen_offset_x >= -SCREEN_WIDTH * 2) {
+                        screen_offset_x = -SCREEN_WIDTH * 2;
+                        current_screen = Vinyl.Utils.Screen.CATEGORY_LIST;
+                        is_category_list_focused = false;
+                        category_header_focus = 0;
+                    }
+                } else {
+                    if (screen_offset_x >= -SCREEN_WIDTH) {
+                        screen_offset_x = -SCREEN_WIDTH;
+                        current_screen = Vinyl.Utils.Screen.LIBRARY_MENU;
+                        library_menu_focused_index = 0;
+                        library_menu_toolbar_focused = false;
+                    }
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f; // Move to the left
-                if (screen_offset_x <= -SCREEN_WIDTH * 2) {
-                    screen_offset_x = -SCREEN_WIDTH * 2;
+                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                float np_target;
+                if (now_playing_return_to_search) {
+                    np_target = -SCREEN_WIDTH * 2;
+                } else if (is_category_browsing) {
+                    np_target = -SCREEN_WIDTH * 4;
+                } else {
+                    np_target = -SCREEN_WIDTH * 3;
+                }
+                if (screen_offset_x <= np_target) {
+                    screen_offset_x = np_target;
                     current_screen = Vinyl.Utils.Screen.NOW_PLAYING;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
-                if (screen_offset_x >= -SCREEN_WIDTH) {
-                    screen_offset_x = -SCREEN_WIDTH;
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                float back_target = is_category_browsing
+                    ? -SCREEN_WIDTH * 3
+                    : -SCREEN_WIDTH * 2;
+                if (screen_offset_x >= back_target) {
+                    screen_offset_x = back_target;
                     current_screen = Vinyl.Utils.Screen.LIBRARY;
                     is_track_list_focused = false;
                     library_header_focus = is_playing ? 2 : 0;
+                    if (library_category == "favorites" && track_list != null) {
+                        var all = get_all_tracks ();
+                        var favs = new Gee.ArrayList<Vinyl.Library.Track> ();
+                        foreach (var t in all) {
+                            if (t.favorite) {
+                                favs.add (t);
+                            }
+                        }
+                        track_list.reload_tracks (renderer, favs);
+                    }
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f; // Move to the right
+                screen_offset_x += TRANSITION_SPEED / 60.0f;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
@@ -855,9 +1014,15 @@ namespace Vinyl {
             } else if (is_in_search_graph ()) {
                 render_search_screen ((int)screen_offset_x + SCREEN_WIDTH);
                 render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+            } else if (is_category_browsing) {
+                render_library_menu_screen ((int)screen_offset_x + SCREEN_WIDTH);
+                render_category_list_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH * 3);
+                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 4);
             } else {
-                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH);
-                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+                render_library_menu_screen ((int)screen_offset_x + SCREEN_WIDTH);
+                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 3);
             }
 
             render_header ();
@@ -885,6 +1050,28 @@ namespace Vinyl {
 
             foreach (var button in main_menu_buttons) {
                 button.render (renderer, font_bold);
+            }
+        }
+
+        private void render_library_menu_screen (int x_offset) {
+            renderer.set_viewport ({x_offset, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+
+            renderer.set_draw_color (20, 20, 25, 255);
+            renderer.fill_rect (null);
+
+            foreach (var button in library_menu_buttons) {
+                button.render (renderer, font_bold);
+            }
+        }
+
+        private void render_category_list_screen (int x_offset) {
+            renderer.set_viewport ({x_offset, 0, SCREEN_WIDTH, SCREEN_HEIGHT});
+
+            renderer.set_draw_color (20, 20, 25, 255);
+            renderer.fill_rect (null);
+
+            if (category_list != null) {
+                category_list.render (renderer, font_bold);
             }
         }
 
@@ -926,6 +1113,7 @@ namespace Vinyl {
 
         private bool is_in_scrollable_list () {
             return (current_screen == Vinyl.Utils.Screen.LIBRARY && is_track_list_focused) ||
+                   (current_screen == Vinyl.Utils.Screen.CATEGORY_LIST && is_category_list_focused) ||
                    (current_screen == Vinyl.Utils.Screen.RADIO && is_radio_list_focused) ||
                    (current_screen == Vinyl.Utils.Screen.SEARCH && search_focus_zone >= 2);
         }
@@ -1070,10 +1258,47 @@ namespace Vinyl {
                     now_playing_button.render (renderer);
                 }
             } else if (
-                current_screen == Vinyl.Utils.Screen.LIBRARY ||
-                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY
+                current_screen == Vinyl.Utils.Screen.LIBRARY_MENU ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN
             ) {
                 render_header_text_centered ("My Music", 25);
+                back_button.render (renderer);
+                if (is_playing || is_radio_playing) {
+                    now_playing_button.render (renderer);
+                }
+            } else if (
+                current_screen == Vinyl.Utils.Screen.CATEGORY_LIST ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU
+            ) {
+                string cat_title = library_category == "artists" ? "Artists" : "Albums";
+                render_header_text_centered (cat_title, 25);
+                back_button.render (renderer);
+                if (is_playing || is_radio_playing) {
+                    now_playing_button.render (renderer);
+                }
+            } else if (
+                current_screen == Vinyl.Utils.Screen.LIBRARY ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY ||
+                current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU
+            ) {
+                if (is_category_browsing && category_list != null) {
+                    string? sel = category_list.get_focused_item ();
+                    if (sel != null) {
+                        render_header_text_centered (sel, 25);
+                    } else {
+                        render_header_text_centered ("My Music", 25);
+                    }
+                } else {
+                    string lib_title;
+                    if (library_category == "favorites") {
+                        lib_title = "Favorites";
+                    } else {
+                        lib_title = "All Songs";
+                    }
+                    render_header_text_centered (lib_title, 25);
+                }
                 back_button.render (renderer);
                 sync_button.render (renderer);
                 if (is_playing) {
@@ -1222,7 +1447,7 @@ namespace Vinyl {
                         if (widget is Vinyl.Widgets.MenuButton) {
                             var button = (Vinyl.Widgets.MenuButton) widget;
                             if (button.id == "music") {
-                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU;
                             } else if (button.id == "radio") {
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                             } else if (button.id == "search") {
@@ -1233,6 +1458,159 @@ namespace Vinyl {
                             if (tb == exit_button) {
                                 quit = true;
                             }
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY_MENU) {
+                bool any_playing = is_playing || is_radio_playing;
+                switch (action) {
+                    case Vinyl.Utils.InputAction.LEFT:
+                        if (current_time > last_joy_move + 200) {
+                            if (!library_menu_toolbar_focused) {
+                                library_menu_toolbar_focused = true;
+                                library_menu_header_focus = 0;
+                                last_joy_move = current_time;
+                            } else if (library_menu_toolbar_focused && any_playing &&
+                                       library_menu_header_focus == 1) {
+                                library_menu_header_focus = 0;
+                                last_joy_move = current_time;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.RIGHT:
+                        if (current_time > last_joy_move + 200) {
+                            if (!library_menu_toolbar_focused) {
+                                library_menu_toolbar_focused = true;
+                                library_menu_header_focus = any_playing ? 1 : 0;
+                                last_joy_move = current_time;
+                            } else if (library_menu_toolbar_focused && any_playing &&
+                                       library_menu_header_focus == 0) {
+                                library_menu_header_focus = 1;
+                                last_joy_move = current_time;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.UP:
+                        if (current_time > last_joy_move + 200) {
+                            if (library_menu_toolbar_focused) {
+                                break;
+                            }
+                            if (library_menu_focused_index == 0) {
+                                library_menu_toolbar_focused = true;
+                                library_menu_header_focus = any_playing ? 1 : 0;
+                                last_joy_move = current_time;
+                                break;
+                            }
+                            library_menu_focused_index--;
+                            last_joy_move = current_time;
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.DOWN:
+                        if (current_time > last_joy_move + 200) {
+                            if (library_menu_toolbar_focused) {
+                                library_menu_toolbar_focused = false;
+                                library_menu_focused_index = 0;
+                                last_joy_move = current_time;
+                                break;
+                            }
+                            library_menu_focused_index++;
+                            if (library_menu_focused_index >= library_menu_buttons.size) {
+                                library_menu_focused_index = 0;
+                            }
+                            last_joy_move = current_time;
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.CONFIRM:
+                        if (library_menu_toolbar_focused) {
+                            if (library_menu_header_focus == 0) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN;
+                            } else if (library_menu_header_focus == 1 && any_playing) {
+                                if (is_radio_playing && radio_now_playing_widget != null) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING;
+                                } else if (is_playing && player != null) {
+                                    current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                                }
+                            }
+                            break;
+                        }
+                        var selected_btn = library_menu_buttons.get (library_menu_focused_index);
+                        activate_library_category (selected_btn.id);
+                        break;
+                    case Vinyl.Utils.InputAction.BACK:
+                        if (!library_menu_toolbar_focused) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN;
+                        }
+                        break;
+                    default:
+                        break;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.CATEGORY_LIST) {
+                bool any_playing_cat = is_playing || is_radio_playing;
+                switch (action) {
+                    case Vinyl.Utils.InputAction.LEFT:
+                        if (current_time > last_joy_move + 200) {
+                            if (is_category_list_focused) {
+                                is_category_list_focused = false;
+                                category_header_focus = 0;
+                                last_joy_move = current_time;
+                            } else if (any_playing_cat && category_header_focus == 1) {
+                                category_header_focus = 0;
+                                last_joy_move = current_time;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.RIGHT:
+                        if (current_time > last_joy_move + 200) {
+                            if (is_category_list_focused) {
+                                is_category_list_focused = false;
+                                category_header_focus = any_playing_cat ? 1 : 0;
+                                last_joy_move = current_time;
+                            } else if (any_playing_cat && category_header_focus == 0) {
+                                category_header_focus = 1;
+                                last_joy_move = current_time;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.UP:
+                        if (current_time > last_joy_move + 200) {
+                            last_joy_move = current_time;
+                            if (is_category_list_focused && category_list != null) {
+                                if (category_list.focused_index == 0) {
+                                    is_category_list_focused = false;
+                                } else {
+                                    category_list.scroll_up ();
+                                }
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.DOWN:
+                        if (current_time > last_joy_move + 200) {
+                            last_joy_move = current_time;
+                            if (is_category_list_focused && category_list != null) {
+                                category_list.scroll_down ();
+                            } else {
+                                is_category_list_focused = true;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.CONFIRM:
+                        if (is_category_list_focused && category_list != null) {
+                            select_category_item ();
+                        } else if (category_header_focus == 0) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU;
+                        } else if (any_playing_cat && category_header_focus == 1) {
+                            if (is_radio_playing && radio_now_playing_widget != null) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING;
+                            } else if (is_playing && player != null) {
+                                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
+                            }
+                        }
+                        break;
+                    case Vinyl.Utils.InputAction.BACK:
+                        if (!is_category_list_focused) {
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU;
                         }
                         break;
                     default:
@@ -1314,12 +1692,12 @@ namespace Vinyl {
                         } else if (is_playing && library_header_focus == 2) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING;
                         } else {
-                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU;
                         }
                         break;
                     case Vinyl.Utils.InputAction.BACK:
                         if (!is_track_list_focused) {
-                            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_MAIN;
+                            current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU;
                             library_header_focus = 0;
                         }
                         break;
@@ -1787,14 +2165,76 @@ namespace Vinyl {
                 if (back_button != null) {
                     back_button.focused = false;
                 }
-            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
-                // Unfocus all main screen widgets
+            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY_MENU) {
                 foreach (var widget in focusable_widgets) {
                     if (widget is Vinyl.Widgets.MenuButton) {
                         ((Vinyl.Widgets.MenuButton) widget).focused = false;
                     } else if (widget is Vinyl.Widgets.ToolbarButton) {
                         ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
                     }
+                }
+
+                bool any_playing = is_playing || is_radio_playing;
+                if (!any_playing && library_menu_header_focus != 0) {
+                    library_menu_header_focus = 0;
+                }
+                if (library_menu_toolbar_focused) {
+                    foreach (var btn in library_menu_buttons) {
+                        btn.focused = false;
+                    }
+                    if (back_button != null) {
+                        back_button.focused = library_menu_header_focus == 0;
+                    }
+                    if (now_playing_button != null) {
+                        now_playing_button.focused = any_playing && library_menu_header_focus == 1;
+                    }
+                } else {
+                    for (var i = 0; i < library_menu_buttons.size; i++) {
+                        library_menu_buttons.get (i).focused = (i == library_menu_focused_index);
+                    }
+                    if (back_button != null) {
+                        back_button.focused = false;
+                    }
+                    if (now_playing_button != null) {
+                        now_playing_button.focused = false;
+                    }
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.CATEGORY_LIST) {
+                foreach (var widget in focusable_widgets) {
+                    if (widget is Vinyl.Widgets.MenuButton) {
+                        ((Vinyl.Widgets.MenuButton) widget).focused = false;
+                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                        ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
+                    }
+                }
+                foreach (var btn in library_menu_buttons) {
+                    btn.focused = false;
+                }
+
+                bool any_playing_cat = is_playing || is_radio_playing;
+                if (!any_playing_cat && category_header_focus != 0) {
+                    category_header_focus = 0;
+                }
+                if (back_button != null) {
+                    back_button.focused = !is_category_list_focused && category_header_focus == 0;
+                }
+                if (now_playing_button != null) {
+                    now_playing_button.focused = !is_category_list_focused &&
+                        any_playing_cat && category_header_focus == 1;
+                }
+                if (category_list != null) {
+                    category_list.is_focused = is_category_list_focused;
+                }
+            } else if (current_screen == Vinyl.Utils.Screen.LIBRARY) {
+                foreach (var widget in focusable_widgets) {
+                    if (widget is Vinyl.Widgets.MenuButton) {
+                        ((Vinyl.Widgets.MenuButton) widget).focused = false;
+                    } else if (widget is Vinyl.Widgets.ToolbarButton) {
+                        ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
+                    }
+                }
+                foreach (var btn in library_menu_buttons) {
+                    btn.focused = false;
                 }
 
                 if (!is_playing && library_header_focus == 2) {
@@ -2046,6 +2486,9 @@ namespace Vinyl {
 
         private void on_radio_state_changed (bool playing) {
             this.is_radio_playing = playing;
+            if (!playing && radio_station_list != null) {
+                radio_station_list.active_station_code = null;
+            }
         }
 
         private void trigger_sync_library () {
@@ -2153,6 +2596,91 @@ namespace Vinyl {
             }
         }
 
+        private Gee.ArrayList<Vinyl.Library.Track> get_all_tracks () {
+            if (library_db != null) {
+                return library_db.load_tracks_for_ui ();
+            }
+            return new Gee.ArrayList<Vinyl.Library.Track> ();
+        }
+
+        private void activate_library_category (string category_id) {
+            library_category = category_id;
+
+            if (category_id == "all_songs") {
+                is_category_browsing = false;
+                var all = get_all_tracks ();
+                if (track_list != null) {
+                    track_list.reload_tracks (renderer, all);
+                }
+                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+            } else if (category_id == "favorites") {
+                is_category_browsing = false;
+                var all = get_all_tracks ();
+                var favs = new Gee.ArrayList<Vinyl.Library.Track> ();
+                foreach (var t in all) {
+                    if (t.favorite) {
+                        favs.add (t);
+                    }
+                }
+                if (track_list != null) {
+                    track_list.reload_tracks (renderer, favs);
+                }
+                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+            } else if (category_id == "artists") {
+                is_category_browsing = true;
+                var all = get_all_tracks ();
+                var names = new Gee.TreeSet<string> ();
+                foreach (var t in all) {
+                    if (t.artist.length > 0) {
+                        names.add (t.artist);
+                    }
+                }
+                var sorted = new Gee.ArrayList<string> ();
+                sorted.add_all (names);
+                category_list = new Vinyl.Widgets.CategoryList (
+                    renderer, Constants.ARTISTS_ICON_PATH, sorted,
+                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                );
+                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST;
+            } else if (category_id == "albums") {
+                is_category_browsing = true;
+                var all = get_all_tracks ();
+                var names = new Gee.TreeSet<string> ();
+                foreach (var t in all) {
+                    if (t.album.length > 0) {
+                        names.add (t.album);
+                    }
+                }
+                var sorted = new Gee.ArrayList<string> ();
+                sorted.add_all (names);
+                category_list = new Vinyl.Widgets.CategoryList (
+                    renderer, Constants.ALBUMS_ICON_PATH, sorted,
+                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                );
+                current_screen = Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST;
+            }
+        }
+
+        private void select_category_item () {
+            if (category_list == null) return;
+            string? selected = category_list.get_focused_item ();
+            if (selected == null) return;
+
+            var all = get_all_tracks ();
+            var filtered = new Gee.ArrayList<Vinyl.Library.Track> ();
+            foreach (var t in all) {
+                if (library_category == "artists" && t.artist == selected) {
+                    filtered.add (t);
+                } else if (library_category == "albums" && t.album == selected) {
+                    filtered.add (t);
+                }
+            }
+            if (track_list != null) {
+                track_list.reload_tracks (renderer, filtered);
+            }
+            current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY;
+        }
+
         private void cleanup () {
             if (player != null) {
                 player.stop ();
@@ -2168,6 +2696,9 @@ namespace Vinyl {
             library_db = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
+            library_menu_buttons.clear ();
+            library_menu_buttons = null;
+            category_list = null;
             focusable_widgets.clear ();
             focusable_widgets = null;
             radio_station_list = null;
