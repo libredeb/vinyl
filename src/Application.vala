@@ -22,6 +22,7 @@ namespace Vinyl {
         private SDLTTF.Font? font;
         private SDLTTF.Font? font_bold;
         private SDLTTF.Font? font_small;
+        private SDLTTF.Font? font_category;
 
         private Vinyl.Utils.Screen current_screen = Vinyl.Utils.Screen.MAIN;
         private float screen_offset_x = 0;
@@ -41,6 +42,9 @@ namespace Vinyl {
         private bool axis_x_active = false;
         private Vinyl.Utils.InputAction? held_direction = null;
         private uint held_direction_since = 0;
+        private bool confirm_button_held = false;
+        private uint confirm_button_down_since = 0;
+        private bool confirm_long_press_fired = false;
         private bool is_track_list_focused = false;
         /** 0 = back, 1 = sync, 2 = now_playing toolbar (only when is_playing). */
         private int library_header_focus = 0;
@@ -149,6 +153,7 @@ namespace Vinyl {
                 }
                 this.handle_events ();
                 this.process_held_dpad ();
+                this.process_confirm_long_press ();
                 this.update ();
                 this.render ();
                 SDL.Timer.delay (16); // Limited to ~60 FPS
@@ -259,6 +264,7 @@ namespace Vinyl {
                 font = new SDLTTF.Font (Constants.FONT_PATH, 24);
                 font_bold = new SDLTTF.Font (Constants.FONT_BOLD_PATH, 38);
                 font_small = new SDLTTF.Font (Constants.FONT_PATH, 18);
+                font_category = new SDLTTF.Font (Constants.FONT_BOLD_PATH, 28);
 
                 exit_button = new Vinyl.Widgets.ToolbarButton (
                     renderer,
@@ -700,7 +706,11 @@ namespace Vinyl {
                         case SDL.Input.GameController.Button.DPAD_RIGHT:
                             cb_action = Vinyl.Utils.InputAction.RIGHT; break;
                         case SDL.Input.GameController.Button.A:
-                            cb_action = Vinyl.Utils.InputAction.CONFIRM; break;
+                            confirm_button_held = true;
+                            confirm_button_down_since = SDL.Timer.get_ticks ();
+                            confirm_long_press_fired = false;
+                            cb_action = null;
+                            break;
                         case SDL.Input.GameController.Button.B:
                             cb_action = Vinyl.Utils.InputAction.BACK; break;
                     }
@@ -715,6 +725,12 @@ namespace Vinyl {
                         case SDL.Input.GameController.Button.DPAD_LEFT:
                         case SDL.Input.GameController.Button.DPAD_RIGHT:
                             held_direction = null;
+                            break;
+                        case SDL.Input.GameController.Button.A:
+                            if (!confirm_long_press_fired) {
+                                handle_input_action (Vinyl.Utils.InputAction.CONFIRM);
+                            }
+                            confirm_button_held = false;
                             break;
                     }
                 } else if (e.type == SDL.EventType.CONTROLLERAXISMOTION) {
@@ -787,6 +803,23 @@ namespace Vinyl {
             if (now > held_direction_since + 200) {
                 handle_input_action (held_direction);
             }
+        }
+
+        private void process_confirm_long_press () {
+            if (!confirm_button_held || confirm_long_press_fired) {
+                return;
+            }
+            uint now = SDL.Timer.get_ticks ();
+            if (now - confirm_button_down_since < 800) {
+                return;
+            }
+            if (current_screen == Vinyl.Utils.Screen.LIBRARY && is_track_list_focused && track_list != null) {
+                var track = track_list.get_focused_track ();
+                if (track != null) {
+                    toggle_track_favorite (track);
+                }
+            }
+            confirm_long_press_fired = true;
         }
 
         private void update () {
@@ -1071,7 +1104,7 @@ namespace Vinyl {
             renderer.fill_rect (null);
 
             if (category_list != null) {
-                category_list.render (renderer, font_bold);
+                category_list.render (renderer, font_category);
             }
         }
 
@@ -1286,9 +1319,9 @@ namespace Vinyl {
                 if (is_category_browsing && category_list != null) {
                     string? sel = category_list.get_focused_item ();
                     if (sel != null) {
-                        render_header_text_centered (sel, 25);
+                        render_header_text_centered (sel, 25, 110, 200);
                     } else {
-                        render_header_text_centered ("My Music", 25);
+                        render_header_text_centered ("My Music", 25, 110, 200);
                     }
                 } else {
                     string lib_title;
@@ -1297,7 +1330,7 @@ namespace Vinyl {
                     } else {
                         lib_title = "All Songs";
                     }
-                    render_header_text_centered (lib_title, 25);
+                    render_header_text_centered (lib_title, 25, 110, 200);
                 }
                 back_button.render (renderer);
                 sync_button.render (renderer);
@@ -2451,9 +2484,7 @@ namespace Vinyl {
         }
 
         /** Renders bold text centered in the header area between the side buttons, with ellipsis if needed. */
-        private void render_header_text_centered (string text, int y) {
-            int left_margin = 110;
-            int right_margin = 110;
+        private void render_header_text_centered (string text, int y, int left_margin = 110, int right_margin = 110) {
             int max_width = SCREEN_WIDTH - left_margin - right_margin;
 
             string display_text = text;
@@ -2476,7 +2507,7 @@ namespace Vinyl {
                 }
             }
 
-            int tx = (SCREEN_WIDTH - tw) / 2;
+            int tx = left_margin + (max_width - tw) / 2;
             renderer.copy (texture, null, {tx, y, tw, th});
         }
 
@@ -2533,7 +2564,7 @@ namespace Vinyl {
             }
 
             string query = search_text.down ();
-            var all = track_list.get_tracks ();
+            var all = get_all_tracks ();
             var results = new Gee.ArrayList<Vinyl.Library.Track> ();
 
             foreach (var track in all) {
@@ -2586,14 +2617,18 @@ namespace Vinyl {
             return s.substring (0, s.index_of_nth_char (count - 1));
         }
 
-        private void toggle_current_track_favorite () {
-            if (now_playing_widget == null) return;
-            var track = now_playing_widget.get_track ();
+        private void toggle_track_favorite (Vinyl.Library.Track track) {
             track.favorite = !track.favorite;
-            now_playing_widget.update_favorite_icon ();
             if (library_db != null && track.db_row_id >= 0) {
                 library_db.toggle_favorite (track.db_row_id, track.favorite);
             }
+        }
+
+        private void toggle_current_track_favorite () {
+            if (now_playing_widget == null) return;
+            var track = now_playing_widget.get_track ();
+            toggle_track_favorite (track);
+            now_playing_widget.update_favorite_icon ();
         }
 
         private Gee.ArrayList<Vinyl.Library.Track> get_all_tracks () {
@@ -2638,24 +2673,30 @@ namespace Vinyl {
                 var sorted = new Gee.ArrayList<string> ();
                 sorted.add_all (names);
                 category_list = new Vinyl.Widgets.CategoryList (
-                    renderer, Constants.ARTISTS_ICON_PATH, sorted,
-                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                    renderer, sorted,
+                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
+                    true
                 );
                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST;
             } else if (category_id == "albums") {
                 is_category_browsing = true;
                 var all = get_all_tracks ();
                 var names = new Gee.TreeSet<string> ();
+                var cover_map = new Gee.HashMap<string, string?> ();
                 foreach (var t in all) {
                     if (t.album.length > 0) {
                         names.add (t.album);
+                        if (!cover_map.has_key (t.album) && t.album_art_path != null) {
+                            cover_map.set (t.album, t.album_art_path);
+                        }
                     }
                 }
                 var sorted = new Gee.ArrayList<string> ();
                 sorted.add_all (names);
                 category_list = new Vinyl.Widgets.CategoryList (
-                    renderer, Constants.ALBUMS_ICON_PATH, sorted,
-                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+                    renderer, sorted,
+                    0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90,
+                    false, cover_map
                 );
                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST;
             }
@@ -2718,6 +2759,7 @@ namespace Vinyl {
             font = null;
             font_bold = null;
             font_small = null;
+            font_category = null;
 
             // Close controller
             if (controller != null) {

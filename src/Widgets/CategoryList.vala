@@ -6,8 +6,11 @@
 namespace Vinyl.Widgets {
     public class CategoryList : GLib.Object {
         private Gee.ArrayList<string> items = new Gee.ArrayList<string> ();
-        private SDL.Video.Texture? icon_texture;
         private SDL.Video.Texture? arrow_texture;
+        private bool use_initials = false;
+        private SDL.Video.Texture?[] item_textures;
+        private bool has_item_textures = false;
+        private SDL.Video.Texture? default_icon_texture;
         private int item_height;
         private int visible_items = 0;
         private int top_index = 0;
@@ -15,17 +18,18 @@ namespace Vinyl.Widgets {
         public bool is_focused = false;
         private SDL.Video.Rect rect;
 
-        private const int MARQUEE_GAP = 80;
-        private const double MARQUEE_SPEED = 50.0;
+        private const string ELLIPSIS = "\u2026";
 
         public CategoryList (
             SDL.Video.Renderer renderer,
-            string icon_path,
             Gee.ArrayList<string> names,
-            int x, int y, int w, int h
+            int x, int y, int w, int h,
+            bool use_initials = false,
+            Gee.HashMap<string, string?>? cover_paths = null
         ) {
             this.rect = { x, y, w, h };
             this.items.add_all (names);
+            this.use_initials = use_initials;
 
             int base_height = 120;
             this.visible_items = h / base_height;
@@ -34,10 +38,26 @@ namespace Vinyl.Widgets {
             }
             this.item_height = h / this.visible_items;
 
-            var surface = SDLImage.load (icon_path);
-            if (surface != null) {
-                this.icon_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+            this.item_textures = new SDL.Video.Texture?[this.items.size];
+            if (cover_paths != null) {
+                this.has_item_textures = true;
+                for (int i = 0; i < this.items.size; i++) {
+                    string name = this.items.get (i);
+                    if (cover_paths.has_key (name) && cover_paths.get (name) != null) {
+                        var surface = SDLImage.load (cover_paths.get (name));
+                        if (surface != null) {
+                            this.item_textures[i] =
+                                SDL.Video.Texture.create_from_surface (renderer, surface);
+                        }
+                    }
+                }
+                var default_surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
+                if (default_surface != null) {
+                    this.default_icon_texture =
+                        SDL.Video.Texture.create_from_surface (renderer, default_surface);
+                }
             }
+
             var arrow_surface = SDLImage.load (Constants.ARROW_RIGHT_ICON_PATH);
             if (arrow_surface != null) {
                 this.arrow_texture = SDL.Video.Texture.create_from_surface (renderer, arrow_surface);
@@ -85,69 +105,92 @@ namespace Vinyl.Widgets {
                     y = (int)(row_y + (item_height / 2) - (icon_h / 2)),
                     w = icon_w, h = icon_h
                 };
-                if (icon_texture != null) {
-                    renderer.copy (icon_texture, null, icon_dest);
-                }
-
-                var text_surface = font.render (items.get (i), {255, 255, 255, 255});
-                if (text_surface != null) {
-                    var text_texture = SDL.Video.Texture.create_from_surface (renderer, text_surface);
-                    if (text_texture != null) {
-                        int tw, th;
-                        text_texture.query (null, null, out tw, out th);
-                        int text_x = (int) icon_dest.x + (int) icon_dest.w + 40;
-                        int max_tw = (int) row_rect.w - text_x - 90;
-                        int text_y = (int)(row_y + (item_height / 2) - (th / 2));
-                        if (tw <= max_tw) {
-                            renderer.copy (text_texture, null, {text_x, text_y, tw, th});
-                        } else {
-                            render_marquee (renderer, text_texture, tw, th, text_x, text_y, max_tw);
+                if (use_initials) {
+                    renderer.set_draw_color (245, 197, 24, 255);
+                    renderer.fill_rect (icon_dest);
+                    string initials = get_initials (items.get (i));
+                    var init_surface = font.render (initials, {40, 40, 40, 255});
+                    if (init_surface != null) {
+                        var init_texture = SDL.Video.Texture.create_from_surface (renderer, init_surface);
+                        if (init_texture != null) {
+                            int itw, ith;
+                            init_texture.query (null, null, out itw, out ith);
+                            int ix = (int) icon_dest.x + ((int) icon_dest.w - itw) / 2;
+                            int iy = (int) icon_dest.y + ((int) icon_dest.h - ith) / 2;
+                            renderer.copy (init_texture, null, {ix, iy, itw, ith});
                         }
                     }
+                } else if (has_item_textures) {
+                    if (item_textures[i] != null) {
+                        renderer.copy (item_textures[i], null, icon_dest);
+                    } else if (default_icon_texture != null) {
+                        renderer.copy (default_icon_texture, null, icon_dest);
+                    }
                 }
+
+                int text_x = (int) icon_dest.x + (int) icon_dest.w + 40;
+                int max_tw = (int) row_rect.w - text_x - 90;
+                render_ellipsized (renderer, font, items.get (i), {255, 255, 255, 255},
+                    text_x, (int)(row_y + (item_height / 2)), max_tw);
 
                 if (arrow_texture != null) {
                     renderer.copy (arrow_texture, null, {
                         (int)(row_rect.x + row_rect.w - 50 - 40),
-                        (int)(row_y + (item_height / 2) - (22)),
-                        44, 44
+                        (int)(row_y + (item_height / 2) - (16)),
+                        24, 32
                     });
                 }
             }
         }
 
-        private void render_marquee (
-            SDL.Video.Renderer renderer,
-            SDL.Video.Texture texture,
-            int text_width, int text_height,
-            int area_x, int y, int max_width
-        ) {
-            int cycle_width = text_width + MARQUEE_GAP;
-            uint ticks = SDL.Timer.get_ticks ();
-            int offset = (int) ((ticks * MARQUEE_SPEED / 1000.0) % cycle_width);
-
-            render_marquee_copy (renderer, texture, text_width, text_height, y, area_x, max_width, -offset);
-            render_marquee_copy (renderer, texture, text_width, text_height, y, area_x, max_width, -offset + cycle_width);
+        private string get_initials (string name) {
+            var parts = name.split (" ");
+            var sb = new StringBuilder ();
+            foreach (unowned string part in parts) {
+                if (part.length > 0 && sb.len < 2) {
+                    sb.append (part.get_char (0).to_string ().up ());
+                }
+            }
+            if (sb.len == 0) {
+                return "?";
+            }
+            return sb.str;
         }
 
-        private void render_marquee_copy (
+        private void render_ellipsized (
             SDL.Video.Renderer renderer,
-            SDL.Video.Texture texture,
-            int tw, int th,
-            int y,
-            int area_x, int area_w,
-            int rel_x
+            SDLTTF.Font font,
+            string text,
+            SDL.Video.Color color,
+            int x, int center_y,
+            int max_width
         ) {
-            if (rel_x >= area_w || rel_x + tw <= 0) {
-                return;
+            string display_text = text;
+            var surface = font.render (display_text, color);
+            if (surface == null) return;
+            var texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+            if (texture == null) return;
+            int tw, th;
+            texture.query (null, null, out tw, out th);
+
+            if (tw > max_width) {
+                string truncated = text;
+                while (truncated.length > 1) {
+                    truncated = truncated.substring (0, truncated.length - 1);
+                    display_text = truncated + ELLIPSIS;
+                    surface = font.render (display_text, color);
+                    if (surface == null) return;
+                    texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+                    if (texture == null) return;
+                    texture.query (null, null, out tw, out th);
+                    if (tw <= max_width) {
+                        break;
+                    }
+                }
             }
-            int src_x = (rel_x < 0) ? -rel_x : 0;
-            int dst_x = area_x + int.max (rel_x, 0);
-            int vis_w = int.min (tw - src_x, area_w - int.max (rel_x, 0));
-            if (vis_w <= 0) {
-                return;
-            }
-            renderer.copy (texture, {src_x, 0, vis_w, th}, {dst_x, y, vis_w, th});
+
+            int dest_y = center_y - (th / 2);
+            renderer.copy (texture, null, {x, dest_y, tw, th});
         }
 
         public bool is_clicked (int mouse_x, int mouse_y, out string? name) {
