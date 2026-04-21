@@ -71,14 +71,14 @@ namespace Vinyl.Library {
             string? music_root = resolve_music_directory ();
 
             if (music_root != null) {
-                var root = File.new_for_path (music_root);
-                if (yield is_symlink_file (root)) {
+                if (FileUtils.test (music_root, FileTest.IS_SYMLINK)) {
                     warning ("Music root is a symbolic link, skipping scan: %s", music_root);
-                } else if (root.query_exists (null)) {
+                } else if (FileUtils.test (music_root, FileTest.IS_DIR)) {
+                    var root = File.new_for_path (music_root);
                     yield collect_audio_files_breadth_first (root, hits);
                 }
             } else {
-                warning ("No music directory found (XDG MUSIC, ~/Music, ~/Musica).");
+                warning ("No music directory found (XDG MUSIC, ~/Music).");
             }
 
             reconcile_disk_with_db (hits);
@@ -86,22 +86,14 @@ namespace Vinyl.Library {
             return this.db.load_tracks_for_ui ();
         }
 
-        private async bool is_symlink_file (File file) {
-            try {
-                var info = yield file.query_info_async (
-                    "standard::is-symlink",
-                    FileQueryInfoFlags.NONE,
-                    Priority.DEFAULT,
-                    null
-                );
-                return info.get_is_symlink ();
-            } catch (Error e) {
-                warning ("query_info symlink: %s", e.message);
-                return false;
-            }
+        private async void collect_audio_files_breadth_first (
+            File root,
+            Gee.ArrayList<DiskFileHit> hits
+        ) {
+            collect_audio_files_sync (root, hits);
         }
 
-        private async void collect_audio_files_breadth_first (
+        private void collect_audio_files_sync (
             File root,
             Gee.ArrayList<DiskFileHit> hits
         ) {
@@ -112,56 +104,49 @@ namespace Vinyl.Library {
                 File dir = pending.remove_at (0);
 
                 try {
-                    var enumerator = yield dir.enumerate_children_async (
+                    var enumerator = dir.enumerate_children (
                         "standard::name,standard::type,standard::is-symlink,standard::size,"
                         + "unix::inode,unix::device,time::modified",
                         FileQueryInfoFlags.NONE,
-                        Priority.DEFAULT,
                         null
                     );
 
-                    while (true) {
-                        var file_infos = yield enumerator.next_files_async (20, Priority.DEFAULT, null);
-                        if (file_infos.length () == 0) {
-                            break;
+                    FileInfo? info = null;
+                    while ((info = enumerator.next_file (null)) != null) {
+                        if (info.get_is_symlink ()) {
+                            continue;
                         }
 
-                        foreach (var info in file_infos) {
-                            if (info.get_is_symlink ()) {
+                        var child = enumerator.get_child (info);
+                        var ft = info.get_file_type ();
+
+                        if (ft == FileType.DIRECTORY) {
+                            pending.add (child);
+                        } else if (ft == FileType.REGULAR) {
+                            string? p = child.get_path ();
+                            if (p == null) {
+                                continue;
+                            }
+                            if (!is_supported_audio (p)) {
                                 continue;
                             }
 
-                            var child = enumerator.get_child (info);
-                            var ft = info.get_file_type ();
-
-                            if (ft == FileType.DIRECTORY) {
-                                pending.add (child);
-                            } else if (ft == FileType.REGULAR) {
-                                string? p = child.get_path ();
-                                if (p == null) {
-                                    continue;
-                                }
-                                if (!is_supported_audio (p)) {
-                                    continue;
-                                }
-
-                                int64 mtime_sec = file_info_mtime_sec (info, p);
-                                int64 size = info.get_size ();
-                                int64 dev = 0;
-                                int64 inode = 0;
-                                if (info.has_attribute ("unix::device")) {
-                                    dev = info.get_attribute_uint32 ("unix::device");
-                                }
-                                if (info.has_attribute ("unix::inode")) {
-                                    inode = (int64) info.get_attribute_uint64 ("unix::inode");
-                                }
-
-                                hits.add (new DiskFileHit (p, dev, inode, mtime_sec, size));
+                            int64 mtime_sec = file_info_mtime_sec (info, p);
+                            int64 size = info.get_size ();
+                            int64 dev = 0;
+                            int64 inode = 0;
+                            if (info.has_attribute ("unix::device")) {
+                                dev = info.get_attribute_uint32 ("unix::device");
                             }
+                            if (info.has_attribute ("unix::inode")) {
+                                inode = (int64) info.get_attribute_uint64 ("unix::inode");
+                            }
+
+                            hits.add (new DiskFileHit (p, dev, inode, mtime_sec, size));
                         }
                     }
                 } catch (Error e) {
-                    warning ("Error scanning directory: %s", e.message);
+                    warning ("Error scanning directory %s: %s", dir.get_path (), e.message);
                 }
             }
         }

@@ -145,6 +145,7 @@ namespace Vinyl {
             trigger_sync_library ();
 
             while (!this.quit) {
+                GLib.MainContext.default ().iteration (false);
                 if (player != null) {
                     player.handle_messages ();
                 }
