@@ -6,8 +6,10 @@ namespace Vinyl {
     class Application {
         const int SCREEN_WIDTH = 720;
         const int SCREEN_HEIGHT = 720;
-        /** Pixels per second; each frame moves by this value / 60 (~60 FPS). One 720px slide ≈ 0.24s. */
+        /** Pixels per second; duration = SCREEN_WIDTH / TRANSITION_SPEED ≈ 0.24s. */
         const int TRANSITION_SPEED = 3000;
+
+        private uint last_frame_time = 0;
 
         private SDL.Video.Window window;
         private SDL.Video.Renderer renderer;
@@ -144,7 +146,14 @@ namespace Vinyl {
             music_scanner = new Vinyl.Library.MusicScanner (library_db);
             trigger_sync_library ();
 
+            last_frame_time = SDL.Timer.get_ticks ();
+
             while (!this.quit) {
+                uint frame_start = SDL.Timer.get_ticks ();
+                float delta = (frame_start - last_frame_time) / 1000.0f;
+                if (delta > 0.1f) delta = 0.1f;
+                last_frame_time = frame_start;
+
                 GLib.MainContext.default ().iteration (false);
                 if (player != null) {
                     player.handle_messages ();
@@ -155,9 +164,13 @@ namespace Vinyl {
                 this.handle_events ();
                 this.process_held_dpad ();
                 this.process_confirm_long_press ();
-                this.update ();
+                this.update (delta);
                 this.render ();
-                SDL.Timer.delay (16); // Limited to ~60 FPS
+
+                uint elapsed = SDL.Timer.get_ticks () - frame_start;
+                if (elapsed < 16) {
+                    SDL.Timer.delay (16 - elapsed);
+                }
             }
 
             this.cleanup ();
@@ -823,9 +836,11 @@ namespace Vinyl {
             confirm_long_press_fired = true;
         }
 
-        private void update () {
+        private void update (float delta) {
+            float step = TRANSITION_SPEED * delta;
+
             if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 if (screen_offset_x <= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY_MENU;
@@ -834,14 +849,14 @@ namespace Vinyl {
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 if (screen_offset_x <= -SCREEN_WIDTH * 2) {
                     screen_offset_x = -SCREEN_WIDTH * 2;
                     current_screen = Vinyl.Utils.Screen.CATEGORY_LIST;
@@ -849,7 +864,7 @@ namespace Vinyl {
                     category_header_focus = 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.LIBRARY_MENU;
@@ -857,7 +872,7 @@ namespace Vinyl {
                     is_category_browsing = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 float lib_target = is_category_browsing
                     ? -SCREEN_WIDTH * 3
                     : -SCREEN_WIDTH * 2;
@@ -868,7 +883,7 @@ namespace Vinyl {
                     library_header_focus = 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_TO_LIBRARY_MENU) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (is_category_browsing) {
                     if (screen_offset_x >= -SCREEN_WIDTH * 2) {
                         screen_offset_x = -SCREEN_WIDTH * 2;
@@ -885,14 +900,14 @@ namespace Vinyl {
                     }
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_NOW_PLAYING) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 float np_target;
                 if (now_playing_return_to_search) {
                     np_target = -SCREEN_WIDTH * 2;
@@ -906,7 +921,7 @@ namespace Vinyl {
                     current_screen = Vinyl.Utils.Screen.NOW_PLAYING;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 float back_target = is_category_browsing
                     ? -SCREEN_WIDTH * 3
                     : -SCREEN_WIDTH * 2;
@@ -927,7 +942,7 @@ namespace Vinyl {
                     }
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
@@ -935,7 +950,7 @@ namespace Vinyl {
                     main_toolbar_index = is_playing ? 1 : 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 if (screen_offset_x <= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.RADIO;
@@ -944,20 +959,20 @@ namespace Vinyl {
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 if (screen_offset_x <= -SCREEN_WIDTH * 2) {
                     screen_offset_x = -SCREEN_WIDTH * 2;
                     current_screen = Vinyl.Utils.Screen.RADIO_NOW_PLAYING;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_RADIO) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.RADIO;
@@ -965,14 +980,14 @@ namespace Vinyl {
                     radio_header_focus = 0;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_TO_SEARCH) {
-                screen_offset_x -= TRANSITION_SPEED / 60.0f;
+                screen_offset_x -= step;
                 if (screen_offset_x <= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.SEARCH;
@@ -980,14 +995,14 @@ namespace Vinyl {
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_SEARCH_TO_MAIN) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= 0) {
                     screen_offset_x = 0;
                     current_screen = Vinyl.Utils.Screen.MAIN;
                     main_toolbar_focused = false;
                 }
             } else if (current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_SEARCH) {
-                screen_offset_x += TRANSITION_SPEED / 60.0f;
+                screen_offset_x += step;
                 if (screen_offset_x >= -SCREEN_WIDTH) {
                     screen_offset_x = -SCREEN_WIDTH;
                     current_screen = Vinyl.Utils.Screen.SEARCH;
@@ -1029,12 +1044,20 @@ namespace Vinyl {
             }
         }
 
+        private bool is_screen_visible (int x_offset) {
+            return (x_offset + SCREEN_WIDTH > 0) && (x_offset < SCREEN_WIDTH);
+        }
+
         private void render () {
             renderer.render_target = canvas;
             renderer.set_draw_color (0, 0, 0, 255);
             renderer.clear ();
 
-            render_main_screen ((int)screen_offset_x);
+            int off = (int) screen_offset_x;
+
+            if (is_screen_visible (off)) {
+                render_main_screen (off);
+            }
 
             if (current_screen == Vinyl.Utils.Screen.RADIO ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO ||
@@ -1043,20 +1066,42 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_RADIO ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN) {
-                render_radio_screen ((int)screen_offset_x + SCREEN_WIDTH);
-                render_radio_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+                if (is_screen_visible (off + SCREEN_WIDTH)) {
+                    render_radio_screen (off + SCREEN_WIDTH);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 2)) {
+                    render_radio_now_playing_screen (off + SCREEN_WIDTH * 2);
+                }
             } else if (is_in_search_graph ()) {
-                render_search_screen ((int)screen_offset_x + SCREEN_WIDTH);
-                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
+                if (is_screen_visible (off + SCREEN_WIDTH)) {
+                    render_search_screen (off + SCREEN_WIDTH);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 2)) {
+                    render_now_playing_screen (off + SCREEN_WIDTH * 2);
+                }
             } else if (is_category_browsing) {
-                render_library_menu_screen ((int)screen_offset_x + SCREEN_WIDTH);
-                render_category_list_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
-                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH * 3);
-                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 4);
+                if (is_screen_visible (off + SCREEN_WIDTH)) {
+                    render_library_menu_screen (off + SCREEN_WIDTH);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 2)) {
+                    render_category_list_screen (off + SCREEN_WIDTH * 2);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 3)) {
+                    render_library_screen (off + SCREEN_WIDTH * 3);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 4)) {
+                    render_now_playing_screen (off + SCREEN_WIDTH * 4);
+                }
             } else {
-                render_library_menu_screen ((int)screen_offset_x + SCREEN_WIDTH);
-                render_library_screen ((int)screen_offset_x + SCREEN_WIDTH * 2);
-                render_now_playing_screen ((int)screen_offset_x + SCREEN_WIDTH * 3);
+                if (is_screen_visible (off + SCREEN_WIDTH)) {
+                    render_library_menu_screen (off + SCREEN_WIDTH);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 2)) {
+                    render_library_screen (off + SCREEN_WIDTH * 2);
+                }
+                if (is_screen_visible (off + SCREEN_WIDTH * 3)) {
+                    render_now_playing_screen (off + SCREEN_WIDTH * 3);
+                }
             }
 
             render_header ();
