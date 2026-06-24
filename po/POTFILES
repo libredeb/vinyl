@@ -1,0 +1,5 @@
+src/Main.vala
+src/Application.vala
+src/Library/MusicScanner.vala
+data/io.github.libredeb.vinyl.desktop.in
+data/io.github.libredeb.vinyl.metainfo.xml.in

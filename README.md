@@ -22,15 +22,15 @@ We created Vinyl for music lovers who want to truly connect with their music, br
    1. Install dependencies:
    * For Ubuntu:
       ```sh
-      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libtagc0-dev libsqlite3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev python3 python3-wheel python3-setuptools
+      sudo apt-get install meson ninja-build valac libvala-*-dev libsdl2-dev libsdl2-image-dev libsdl2-ttf-dev libtagc0-dev libsqlite3-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev gettext python3 python3-wheel python3-setuptools
       ```
    * For Fedora:
       ```sh
-      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel taglib-devel sqlite-devel gstreamer1-devel gstreamer1-plugins-base-devel python3 python3-wheel python3-setuptools
+      sudo dnf install meson ninja-build vala libvala-devel sdl2-compat-devel SDL2_image-devel SDL2_ttf-devel taglib-devel sqlite-devel gstreamer1-devel gstreamer1-plugins-base-devel gettext python3 python3-wheel python3-setuptools
       ```
    * For Arch Linux:
       ```sh
-      sudo pacman -Sy meson ninja vala sdl2 sdl2_image sdl2_ttf taglib sqlite gstreamer gst-plugins-base-libs python python-wheel python-setuptools
+      sudo pacman -Sy meson ninja vala sdl2 sdl2_image sdl2_ttf taglib sqlite gstreamer gst-plugins-base-libs gettext python python-wheel python-setuptools
       ```
    2. Clone this repository into your machine
       ```sh
@@ -82,6 +82,44 @@ The data directory is created automatically when the database is first opened.
 - `.flac`
 - `.ogg`
 - `.wav`
+
+## Translations
+
+Vinyl uses [Gettext](https://www.gnu.org/software/gettext/) for internationalization (i18n). Translation files live in the `po/` directory.
+
+### Generating the translation template (.pot)
+
+After building, generate or update the `.pot` template from the source strings:
+
+```sh
+cd build
+ninja io.github.libredeb.vinyl-pot
+```
+
+### Updating existing translations (.po)
+
+To update all `.po` files with new/changed strings from the `.pot` template:
+
+```sh
+cd build
+ninja io.github.libredeb.vinyl-update-po
+```
+
+### Adding a new language
+
+1. Add the language code (e.g. `ja` for Japanese) to `po/LINGUAS`.
+2. Run the update command above to generate the new `.po` file.
+3. Translate the strings in `po/<code>.po`.
+
+### Currently supported languages
+
+| Language | Code |
+|----------|------|
+| Spanish | `es` |
+| German | `de` |
+| French | `fr` |
+| Italian | `it` |
+| Portuguese | `pt` |
 
 ## Developer Section
 

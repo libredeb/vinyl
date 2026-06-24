@@ -331,8 +331,8 @@ namespace Vinyl.Library {
             }
 
             var title = tag.title != "" ? tag.title : Path.get_basename (file_path);
-            var artist = tag.artist != "" ? tag.artist : "Unknown Artist";
-            var album = tag.album != "" ? tag.album : "Unknown Album";
+            var artist = tag.artist != "" ? tag.artist : _("Unknown Artist");
+            var album = tag.album != "" ? tag.album : _("Unknown Album");
             string? album_art_path = save_album_art (file_path, album, artist);
 
             return new Track (file_path, title, artist, album, album_art_path, -1);

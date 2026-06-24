@@ -4,4 +4,6 @@ namespace Config {
     public const string PACKAGE_LIBDIR;
     public const string PACKAGE_SHAREDIR;
     public const string PACKAGE_VERSION;
+    public const string GETTEXT_PACKAGE;
+    public const string LOCALEDIR;
 }

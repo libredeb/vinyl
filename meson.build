@@ -10,6 +10,12 @@ prefix = get_option('prefix')
 libdir = join_paths(prefix, get_option('libdir'))
 datadir = join_paths(prefix, get_option('datadir'))
 
+# Include the translations module
+i18n = import('i18n')
+
+# Set our translation domain
+add_global_arguments('-DGETTEXT_PACKAGE="@0@"'.format (meson.project_name()), language:'c')
+
 VAPI_DIR = join_paths(meson.project_source_root(), 'vapi')
 vala = meson.get_compiler('vala')
 
@@ -19,6 +25,8 @@ conf.set_quoted('PROJECT_NAME', PROJECT_NAME)
 conf.set_quoted('PACKAGE_LIBDIR', libdir)
 conf.set_quoted('PACKAGE_SHAREDIR', datadir)
 conf.set_quoted('PACKAGE_VERSION', meson.project_version())
+conf.set_quoted('GETTEXT_PACKAGE', meson.project_name())
+conf.set_quoted('LOCALEDIR', join_paths(prefix, get_option('localedir')))
 
 config_h = configure_file(
 	output: 'config.h',
@@ -101,18 +109,23 @@ executable(
     install: true
 )
 
-# Install .desktop so the applications menu shows the launcher
-install_data(
-    'data' / 'io.github.libredeb.vinyl.desktop',
-    install_dir: get_option('datadir') / 'applications',
-    rename: meson.project_name() + '.desktop'
+# Translate and install our .desktop file
+i18n.merge_file(
+    input: 'data' / 'io.github.libredeb.vinyl.desktop.in',
+    output: meson.project_name() + '.desktop',
+    po_dir: meson.project_source_root() / 'po',
+    type: 'desktop',
+    install: true,
+    install_dir: get_option('datadir') / 'applications'
 )
 
-# Install AppStream metainfo
-install_data(
-    'data' / 'io.github.libredeb.vinyl.metainfo.xml.in',
-    install_dir: get_option('datadir') / 'metainfo',
-    rename: meson.project_name() + '.metainfo.xml'
+# Translate and install our .metainfo file
+i18n.merge_file(
+    input: 'data' / 'io.github.libredeb.vinyl.metainfo.xml.in',
+    output: meson.project_name() + '.metainfo.xml',
+    po_dir: meson.project_source_root() / 'po',
+    install: true,
+    install_dir: get_option('datadir') / 'metainfo'
 )
 
 # Install manual page
@@ -229,5 +242,7 @@ install_data(
     join_paths('data', 'radios.ini'),
     install_dir: join_paths(datadir, PROJECT_NAME)
 )
+
+subdir('po')
 
 meson.add_install_script('post_install.py')
