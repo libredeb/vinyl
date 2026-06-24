@@ -1410,11 +1410,11 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_SEARCH
             ) {
                 if (now_playing_return_to_search && search_track_list != null) {
-                    var text = _("Now Playing • %d of %d").printf (
+                    var text = _("Now Playing") + " \u2022 " + _("%d of %d").printf (
                         search_track_list.focused_index + 1, search_track_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 } else if (track_list != null) {
-                    var text = _("Now Playing • %d of %d").printf (
+                    var text = _("Now Playing") + " \u2022 " + _("%d of %d").printf (
                         track_list.focused_index + 1, track_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 }
@@ -1427,7 +1427,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN
             ) {
                 if (radio_station_list != null) {
-                    var text = _("Now Playing • %d of %d").printf (
+                    var text = _("Radio Station") + " \u2022 " + _("%d of %d").printf (
                         radio_station_list.focused_index + 1, radio_station_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 }
