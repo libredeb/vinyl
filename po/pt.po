@@ -1,0 +1,161 @@
+# Portuguese translation for Vinyl.
+# Copyright (C) 2026 Juan Pablo Lozano
+# This file is distributed under the same license as the io.github.libredeb.vinyl package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: io.github.libredeb.vinyl\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-06-24 00:27-0300\n"
+"PO-Revision-Date: 2026-06-24 00:30-0300\n"
+"Last-Translator: \n"
+"Language-Team: Portuguese\n"
+"Language: pt\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: src/Application.vala:324 src/Application.vala:1344 src/Application.vala:1370
+msgid "My Music"
+msgstr "Minha Música"
+
+#: src/Application.vala:328 src/Application.vala:1391
+msgid "Radio"
+msgstr "Rádio"
+
+#: src/Application.vala:332 src/Application.vala:1401
+msgid "Search"
+msgstr "Pesquisar"
+
+#: src/Application.vala:338 src/Application.vala:1377
+msgid "All Songs"
+msgstr "Todas as Músicas"
+
+#: src/Application.vala:342 src/Application.vala:1375
+msgid "Favorites"
+msgstr "Favoritos"
+
+#: src/Application.vala:346 src/Application.vala:1354
+msgid "Artists"
+msgstr "Artistas"
+
+#: src/Application.vala:350 src/Application.vala:1354
+msgid "Albums"
+msgstr "Álbuns"
+
+#: src/Application.vala:1297
+msgid "No results"
+msgstr "Sem resultados"
+
+#: src/Application.vala:1413 src/Application.vala:1417
+msgid "Now Playing"
+msgstr "Reproduzindo Agora"
+
+#: src/Application.vala:1413 src/Application.vala:1417
+#: src/Application.vala:1430
+#, c-format
+msgid "%d of %d"
+msgstr "%d de %d"
+
+#: src/Application.vala:1430
+msgid "Radio Station"
+msgstr "Estação de Rádio"
+
+#: src/Library/MusicScanner.vala:334
+msgid "Unknown Artist"
+msgstr "Artista Desconhecido"
+
+#: src/Library/MusicScanner.vala:335
+msgid "Unknown Album"
+msgstr "Álbum Desconhecido"
+
+#: data/io.github.libredeb.vinyl.desktop.in:5
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:9
+msgid "Vinyl"
+msgstr "Vinyl"
+
+#: data/io.github.libredeb.vinyl.desktop.in:6
+msgid "Browse and play your music library"
+msgstr "Navegue e reproduza sua biblioteca musical"
+
+#: data/io.github.libredeb.vinyl.desktop.in:7
+msgid "Music Player"
+msgstr "Reprodutor de Música"
+
+#: data/io.github.libredeb.vinyl.desktop.in:11
+msgid "music;audio;player;library;SDL;"
+msgstr "música;áudio;reprodutor;biblioteca;SDL;"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:10
+msgid "A fullscreen music experience"
+msgstr "Uma experiência musical em tela cheia"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:12
+msgid ""
+"A desktop music player that provides a beautiful, fullscreen interface to "
+"your music library. Built for those who appreciate a clean aesthetic and "
+"intuitive control."
+msgstr ""
+"Um reprodutor de música desktop que oferece uma bela interface em tela "
+"cheia para sua biblioteca musical. Criado para quem aprecia uma estética "
+"limpa e controle intuitivo."
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:17
+msgid ""
+"Whether you prefer using your keyboard or a gamepad, Vinyl offers a seamless "
+"way to navigate your tunes without ever needing to reach for a mouse. We "
+"created Vinyl for music lovers who want to truly connect with their music, "
+"bringing back the intentionality of listening to a record."
+msgstr ""
+"Seja usando o teclado ou um gamepad, o Vinyl oferece uma forma fluida de "
+"navegar pela sua música sem nunca precisar recorrer ao mouse. Criamos o "
+"Vinyl para os amantes da música que querem verdadeiramente se conectar com "
+"sua música, trazendo de volta a intencionalidade de ouvir um disco."
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:27
+msgid "Juan Pablo Lozano"
+msgstr "Juan Pablo Lozano"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:42
+msgid "Vinyl main library view"
+msgstr "Vista principal da biblioteca do Vinyl"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:46
+msgid "Now playing view"
+msgstr "Vista de reprodução atual"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:50
+msgid "Album browsing"
+msgstr "Exploração de álbuns"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:54
+msgid "Radio stations"
+msgstr "Estações de rádio"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:70
+msgid "music"
+msgstr "música"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:71
+msgid "audio"
+msgstr "áudio"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:72
+msgid "player"
+msgstr "reprodutor"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:73
+msgid "library"
+msgstr "biblioteca"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:74
+msgid "fullscreen"
+msgstr "tela cheia"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:75
+msgid "gamepad"
+msgstr "gamepad"
+
+#: data/io.github.libredeb.vinyl.metainfo.xml.in:86
+msgid "Initial public release of Vinyl."
+msgstr "Lançamento público inicial do Vinyl."

@@ -321,33 +321,33 @@ namespace Vinyl {
 
                 main_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
                 main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.LIBRARY_ICON_PATH, "music", "My Music",
+                    renderer, Constants.LIBRARY_ICON_PATH, "music", _("My Music"),
                     0, 120, SCREEN_WIDTH, 120
                 ));
                 main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.RADIO_ICON_PATH, "radio", "Radio",
+                    renderer, Constants.RADIO_ICON_PATH, "radio", _("Radio"),
                     0, 240, SCREEN_WIDTH, 120
                 ));
                 main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.SEARCH_ICON_PATH, "search", "Search",
+                    renderer, Constants.SEARCH_ICON_PATH, "search", _("Search"),
                     0, 360, SCREEN_WIDTH, 120
                 ));
 
                 library_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
                 library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ALL_SONGS_ICON_PATH, "all_songs", "All Songs",
+                    renderer, Constants.ALL_SONGS_ICON_PATH, "all_songs", _("All Songs"),
                     0, 120, SCREEN_WIDTH, 120
                 ));
                 library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.FAVORITES_ICON_PATH, "favorites", "Favorites",
+                    renderer, Constants.FAVORITES_ICON_PATH, "favorites", _("Favorites"),
                     0, 240, SCREEN_WIDTH, 120
                 ));
                 library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ARTISTS_ICON_PATH, "artists", "Artists",
+                    renderer, Constants.ARTISTS_ICON_PATH, "artists", _("Artists"),
                     0, 360, SCREEN_WIDTH, 120
                 ));
                 library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ALBUMS_ICON_PATH, "albums", "Albums",
+                    renderer, Constants.ALBUMS_ICON_PATH, "albums", _("Albums"),
                     0, 480, SCREEN_WIDTH, 120
                 ));
 
@@ -1294,7 +1294,7 @@ namespace Vinyl {
             if (search_track_list != null && search_track_list.get_total_items () > 0) {
                 search_track_list.render (renderer, font, font_small);
             } else if (search_text.char_count () >= 3) {
-                var ns = font.render ("No results", {160, 160, 160, 255});
+                var ns = font.render (_("No results"), {160, 160, 160, 255});
                 if (ns != null) {
                     var nt = SDL.Video.Texture.create_from_surface (renderer, ns);
                     if (nt != null) {
@@ -1341,7 +1341,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN
             ) {
-                render_header_text_centered ("My Music", 25);
+                render_header_text_centered (_("My Music"), 25);
                 back_button.render (renderer);
                 if (is_playing || is_radio_playing) {
                     now_playing_button.render (renderer);
@@ -1351,7 +1351,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_CATEGORY_LIST ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_CATEGORY_LIST_TO_LIBRARY_MENU
             ) {
-                string cat_title = library_category == "artists" ? "Artists" : "Albums";
+                string cat_title = library_category == "artists" ? _("Artists") : _("Albums");
                 render_header_text_centered (cat_title, 25);
                 back_button.render (renderer);
                 if (is_playing || is_radio_playing) {
@@ -1367,14 +1367,14 @@ namespace Vinyl {
                     if (sel != null) {
                         render_header_text_centered (sel, 25, 110, 200);
                     } else {
-                        render_header_text_centered ("My Music", 25, 110, 200);
+                        render_header_text_centered (_("My Music"), 25, 110, 200);
                     }
                 } else {
                     string lib_title;
                     if (library_category == "favorites") {
-                        lib_title = "Favorites";
+                        lib_title = _("Favorites");
                     } else {
-                        lib_title = "All Songs";
+                        lib_title = _("All Songs");
                     }
                     render_header_text_centered (lib_title, 25, 110, 200);
                 }
@@ -1388,7 +1388,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_TO_MAIN
             ) {
-                render_header_text_centered ("Radio", 25);
+                render_header_text_centered (_("Radio"), 25);
                 back_button.render (renderer);
                 if (is_playing || is_radio_playing) {
                     now_playing_button.render (renderer);
@@ -1398,7 +1398,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_SEARCH ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_SEARCH_TO_MAIN
             ) {
-                render_header_text_centered ("Search", 25);
+                render_header_text_centered (_("Search"), 25);
                 back_button.render (renderer);
                 if (is_playing || is_radio_playing) {
                     now_playing_button.render (renderer);
@@ -1410,11 +1410,11 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_SEARCH
             ) {
                 if (now_playing_return_to_search && search_track_list != null) {
-                    var text = "Now Playing • %d of %d".printf (
+                    var text = _("Now Playing") + " \u2022 " + _("%d of %d").printf (
                         search_track_list.focused_index + 1, search_track_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 } else if (track_list != null) {
-                    var text = "Now Playing • %d of %d".printf (
+                    var text = _("Now Playing") + " \u2022 " + _("%d of %d").printf (
                         track_list.focused_index + 1, track_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 }
@@ -1427,7 +1427,7 @@ namespace Vinyl {
                 current_screen == Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN
             ) {
                 if (radio_station_list != null) {
-                    var text = "Now Playing • %d of %d".printf (
+                    var text = _("Radio Station") + " \u2022 " + _("%d of %d").printf (
                         radio_station_list.focused_index + 1, radio_station_list.get_total_items ());
                     render_header_text_centered (text, 25);
                 }
