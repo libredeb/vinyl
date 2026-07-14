@@ -369,7 +369,186 @@ namespace Vinyl.Library {
                 warning ("GStreamer discoverer failed for '%s': %s", file_path, e.message);
             }
 
+            if (file_path.has_suffix (".wav")) {
+                string? wav_result = extract_cover_from_wav_id3 (file_path, cover_path);
+                if (wav_result != null) {
+                    return wav_result;
+                }
+            }
+
             return null;
+        }
+
+        /**
+         * Fallback for WAV files: GStreamer's wavparse does not expose APIC
+         * frames from the ID3v2 chunk embedded in RIFF containers.
+         * This method manually parses the RIFF structure to find the "ID3 "
+         * chunk and extracts the cover image from it.
+         */
+        private string? extract_cover_from_wav_id3 (string file_path, string cover_path) {
+            try {
+                var file = File.new_for_path (file_path);
+                var input_stream = file.read (null);
+                var dis = new DataInputStream (input_stream);
+                dis.byte_order = DataStreamByteOrder.LITTLE_ENDIAN;
+
+                uint8[] header = new uint8[12];
+                size_t bytes_read;
+                dis.read_all (header, out bytes_read, null);
+                if (bytes_read < 12) return null;
+
+                if (header[0] != 'R' || header[1] != 'I' || header[2] != 'F' || header[3] != 'F') {
+                    return null;
+                }
+                if (header[8] != 'W' || header[9] != 'A' || header[10] != 'V' || header[11] != 'E') {
+                    return null;
+                }
+
+                uint32 riff_size = (uint32) header[4]
+                    | ((uint32) header[5] << 8)
+                    | ((uint32) header[6] << 16)
+                    | ((uint32) header[7] << 24);
+
+                int64 pos = 12;
+                int64 end_pos = (int64) riff_size + 8;
+
+                while (pos < end_pos) {
+                    uint8[] chunk_hdr = new uint8[8];
+                    dis.read_all (chunk_hdr, out bytes_read, null);
+                    if (bytes_read < 8) break;
+
+                    uint32 chunk_size = (uint32) chunk_hdr[4]
+                        | ((uint32) chunk_hdr[5] << 8)
+                        | ((uint32) chunk_hdr[6] << 16)
+                        | ((uint32) chunk_hdr[7] << 24);
+
+                    pos += 8;
+
+                    bool is_id3 = (chunk_hdr[0] == 'I' || chunk_hdr[0] == 'i')
+                               && (chunk_hdr[1] == 'D' || chunk_hdr[1] == 'd')
+                               && (chunk_hdr[2] == '3' || chunk_hdr[2] == '3')
+                               && chunk_hdr[3] == ' ';
+
+                    if (is_id3 && chunk_size > 10) {
+                        uint8[] id3_data = new uint8[chunk_size];
+                        dis.read_all (id3_data, out bytes_read, null);
+                        if (bytes_read < chunk_size) break;
+
+                        uint8[]? img = parse_id3v2_apic_image (id3_data);
+                        if (img != null && img.length > 0) {
+                            FileUtils.set_data (cover_path, img);
+                            if (FileUtils.test (cover_path, FileTest.EXISTS)) {
+                                return cover_path;
+                            }
+                        }
+                        return null;
+                    }
+
+                    uint32 skip = chunk_size + (chunk_size % 2);
+                    dis.skip (skip, null);
+                    pos += skip;
+                }
+            } catch (Error e) {
+                warning ("WAV ID3 cover extraction failed for '%s': %s", file_path, e.message);
+            }
+
+            return null;
+        }
+
+        private uint8[]? parse_id3v2_apic_image (uint8[] id3_data) {
+            if (id3_data.length < 10) return null;
+            if (id3_data[0] != 'I' || id3_data[1] != 'D' || id3_data[2] != '3') {
+                return null;
+            }
+
+            uint8 version_major = id3_data[3];
+            uint8 flags = id3_data[5];
+
+            uint32 tag_size = ((uint32) id3_data[6] << 21)
+                            | ((uint32) id3_data[7] << 14)
+                            | ((uint32) id3_data[8] << 7)
+                            | ((uint32) id3_data[9]);
+
+            uint32 pos = 10;
+
+            if ((flags & 0x40) != 0 && pos + 4 <= id3_data.length) {
+                uint32 ext_size = ((uint32) id3_data[10] << 24)
+                                | ((uint32) id3_data[11] << 16)
+                                | ((uint32) id3_data[12] << 8)
+                                | ((uint32) id3_data[13]);
+                pos += ext_size;
+            }
+
+            uint32 frame_end = 10 + tag_size;
+            if (frame_end > id3_data.length) {
+                frame_end = (uint32) id3_data.length;
+            }
+
+            while (pos + 10 < frame_end) {
+                if (id3_data[pos] == 0) break;
+
+                bool is_apic = id3_data[pos] == 'A'
+                            && id3_data[pos + 1] == 'P'
+                            && id3_data[pos + 2] == 'I'
+                            && id3_data[pos + 3] == 'C';
+
+                uint32 frame_size;
+                if (version_major == 4) {
+                    frame_size = ((uint32) id3_data[pos + 4] << 21)
+                               | ((uint32) id3_data[pos + 5] << 14)
+                               | ((uint32) id3_data[pos + 6] << 7)
+                               | ((uint32) id3_data[pos + 7]);
+                } else {
+                    frame_size = ((uint32) id3_data[pos + 4] << 24)
+                               | ((uint32) id3_data[pos + 5] << 16)
+                               | ((uint32) id3_data[pos + 6] << 8)
+                               | ((uint32) id3_data[pos + 7]);
+                }
+
+                pos += 10;
+
+                if (is_apic && frame_size > 0 && pos + frame_size <= frame_end) {
+                    return extract_image_from_apic_frame (id3_data, pos, frame_size);
+                }
+
+                pos += frame_size;
+            }
+
+            return null;
+        }
+
+        private uint8[]? extract_image_from_apic_frame (uint8[] data, uint32 offset, uint32 size) {
+            uint32 pos = offset;
+            uint32 end = offset + size;
+
+            if (pos >= end) return null;
+
+            uint8 encoding = data[pos];
+            pos++;
+
+            while (pos < end && data[pos] != 0) pos++;
+            pos++;
+
+            if (pos >= end) return null;
+            pos++;
+
+            if (encoding == 0 || encoding == 3) {
+                while (pos < end && data[pos] != 0) pos++;
+                pos++;
+            } else {
+                while (pos + 1 < end) {
+                    if (data[pos] == 0 && data[pos + 1] == 0) break;
+                    pos += 2;
+                }
+                pos += 2;
+            }
+
+            if (pos >= end) return null;
+
+            uint32 img_size = end - pos;
+            uint8[] image = data[pos:pos + img_size];
+
+            return image;
         }
 
         private Gst.Sample? get_cover_sample (Gst.TagList tag_list) {
