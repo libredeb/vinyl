@@ -18,6 +18,7 @@ namespace Vinyl {
             this.playlist = playlist;
             this.current_track_index = start_index;
 
+            Vinyl.ensure_gst ();
             playbin = Gst.ElementFactory.make ("playbin", "playbin");
             var track = playlist.get (start_index);
             playbin.set_property ("uri", "file://" + track.file_path);

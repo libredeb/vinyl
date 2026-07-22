@@ -3,6 +3,15 @@
  * SPDX-FileCopyrightText: 2016 Juan Pablo Lozano <libredeb@gmail.com>
  */
 namespace Vinyl {
+    /**
+     * Ensures GStreamer is initialized. Safe to call from any thread and
+     * multiple times — gst_init uses g_once internally.
+     */
+    public static void ensure_gst () {
+        unowned string[]? no_args = null;
+        Gst.init (ref no_args);
+    }
+
     class Application {
         const int SCREEN_WIDTH = 720;
         const int SCREEN_HEIGHT = 720;
@@ -110,41 +119,17 @@ namespace Vinyl {
                 return 1;
             }
 
+            // Start GStreamer initialization in a background thread so the UI
+            // is not blocked.  Gst.init uses g_once, so calling ensure_gst()
+            // later from the main thread is safe and returns instantly once done.
+            new Thread<bool> ("gst-init", () => {
+                Vinyl.ensure_gst ();
+                return true;
+            });
+
             if (!this.load_media ()) {
                 return 1;
             }
-
-            library_db = new Vinyl.Library.LibraryDatabase ();
-            if (!library_db.open ()) {
-                warning ("Library database could not be opened; continuing with an empty library.");
-            }
-
-            var tracks = library_db.load_tracks_for_ui ();
-            track_list = new Vinyl.Widgets.TrackList (
-                renderer,
-                tracks,
-                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
-            );
-
-            search_track_list = new Vinyl.Widgets.TrackList (
-                renderer,
-                new Gee.ArrayList<Vinyl.Library.Track> (),
-                0, 170, SCREEN_WIDTH, 220
-            );
-            search_keyboard = new Vinyl.Widgets.OnScreenKeyboard (0, 400, SCREEN_WIDTH, 320);
-            clear_all_icon = SDLImage.load_texture (renderer, Constants.CLEAR_ALL_ICON_PATH);
-
-            var stations = Vinyl.Radio.RadioStation.load_stations ();
-            radio_station_list = new Vinyl.Widgets.RadioStationList (
-                renderer,
-                stations,
-                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
-            );
-            radio_player = new Vinyl.Radio.RadioPlayer ();
-            radio_player.state_changed.connect (on_radio_state_changed);
-
-            music_scanner = new Vinyl.Library.MusicScanner (library_db);
-            trigger_sync_library ();
 
             last_frame_time = SDL.Timer.get_ticks ();
 
@@ -295,22 +280,6 @@ namespace Vinyl {
                     20, 20, 80, 50 // Compact size
                 );
 
-                sync_button = new Vinyl.Widgets.ToolbarButton (
-                    renderer,
-                    Constants.TOOLBAR_BUTTON_BG_PATH,
-                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
-                    Constants.SYNC_TB_ICON_PATH,
-                    SCREEN_WIDTH - 190, 20, 80, 50
-                );
-
-                playlist_button = new Vinyl.Widgets.ToolbarButton (
-                    renderer,
-                    Constants.TOOLBAR_BUTTON_BG_PATH,
-                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
-                    Constants.PLAYLIST_TB_ICON_PATH,
-                    SCREEN_WIDTH - 100, 20, 80, 50
-                );
-
                 now_playing_button = new Vinyl.Widgets.ToolbarButton (
                     renderer,
                     Constants.TOOLBAR_BUTTON_BG_PATH,
@@ -331,24 +300,6 @@ namespace Vinyl {
                 main_menu_buttons.add (new Vinyl.Widgets.MenuButton (
                     renderer, Constants.SEARCH_ICON_PATH, "search", _("Search"),
                     0, 360, SCREEN_WIDTH, 120
-                ));
-
-                library_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
-                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ALL_SONGS_ICON_PATH, "all_songs", _("All Songs"),
-                    0, 120, SCREEN_WIDTH, 120
-                ));
-                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.FAVORITES_ICON_PATH, "favorites", _("Favorites"),
-                    0, 240, SCREEN_WIDTH, 120
-                ));
-                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ARTISTS_ICON_PATH, "artists", _("Artists"),
-                    0, 360, SCREEN_WIDTH, 120
-                ));
-                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
-                    renderer, Constants.ALBUMS_ICON_PATH, "albums", _("Albums"),
-                    0, 480, SCREEN_WIDTH, 120
                 ));
 
                 // Menu entries first (vertical flow), exit last so D-pad down advances logically
@@ -386,10 +337,14 @@ namespace Vinyl {
                                 focused_widget_index = focusable_widgets.index_of (button);
 
                                 if (button.id == "music") {
+                                    ensure_library_menu ();
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU;
                                 } else if (button.id == "radio") {
+                                    ensure_radio ();
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                                 } else if (button.id == "search") {
+                                    ensure_library ();
+                                    ensure_search ();
                                     current_screen = Vinyl.Utils.Screen.TRANSITION_TO_SEARCH;
                                 }
                             }
@@ -407,7 +362,7 @@ namespace Vinyl {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_LIBRARY_MENU_TO_MAIN;
                         }
 
-                        for (var i = 0; i < library_menu_buttons.size; i++) {
+                        for (var i = 0; library_menu_buttons != null && i < library_menu_buttons.size; i++) {
                             var lm_button = library_menu_buttons.get (i);
                             if (lm_button.is_clicked (mouse_x, mouse_y)) {
                                 library_menu_focused_index = i;
@@ -481,7 +436,7 @@ namespace Vinyl {
                             } else {
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_LIBRARY;
                             }
-                        } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
+                        } else if (playlist_button != null && playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_NOW_PLAYING_TO_MAIN;
                         } else if (now_playing_widget != null &&
                                    now_playing_widget.favorite_button.is_clicked (mouse_x, mouse_y)) {
@@ -555,7 +510,7 @@ namespace Vinyl {
                     } else if (current_screen == Vinyl.Utils.Screen.RADIO_NOW_PLAYING) {
                         if (back_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_RADIO;
-                        } else if (playlist_button.is_clicked (mouse_x, mouse_y)) {
+                        } else if (playlist_button != null && playlist_button.is_clicked (mouse_x, mouse_y)) {
                             current_screen = Vinyl.Utils.Screen.TRANSITION_FROM_RADIO_NOW_PLAYING_TO_MAIN;
                         } else if (radio_now_playing_widget != null) {
                             var controls = radio_now_playing_widget.player_controls;
@@ -1138,8 +1093,10 @@ namespace Vinyl {
             renderer.set_draw_color (20, 20, 25, 255);
             renderer.fill_rect (null);
 
-            foreach (var button in library_menu_buttons) {
-                button.render (renderer, font_bold);
+            if (library_menu_buttons != null) {
+                foreach (var button in library_menu_buttons) {
+                    button.render (renderer, font_bold);
+                }
             }
         }
 
@@ -1379,7 +1336,9 @@ namespace Vinyl {
                     render_header_text_centered (lib_title, 25, 110, 200);
                 }
                 back_button.render (renderer);
-                sync_button.render (renderer);
+                if (sync_button != null) {
+                    sync_button.render (renderer);
+                }
                 if (is_playing) {
                     now_playing_button.render (renderer);
                 }
@@ -1419,7 +1378,9 @@ namespace Vinyl {
                     render_header_text_centered (text, 25);
                 }
                 back_button.render (renderer);
-                playlist_button.render (renderer);
+                if (playlist_button != null) {
+                    playlist_button.render (renderer);
+                }
             } else if (
                 current_screen == Vinyl.Utils.Screen.RADIO_NOW_PLAYING ||
                 current_screen == Vinyl.Utils.Screen.TRANSITION_TO_RADIO_NOW_PLAYING ||
@@ -1432,7 +1393,9 @@ namespace Vinyl {
                     render_header_text_centered (text, 25);
                 }
                 back_button.render (renderer);
-                playlist_button.render (renderer);
+                if (playlist_button != null) {
+                    playlist_button.render (renderer);
+                }
             }
         }
 
@@ -1526,10 +1489,14 @@ namespace Vinyl {
                         if (widget is Vinyl.Widgets.MenuButton) {
                             var button = (Vinyl.Widgets.MenuButton) widget;
                             if (button.id == "music") {
+                                ensure_library_menu ();
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_LIBRARY_MENU;
                             } else if (button.id == "radio") {
+                                ensure_radio ();
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_RADIO;
                             } else if (button.id == "search") {
+                                ensure_library ();
+                                ensure_search ();
                                 current_screen = Vinyl.Utils.Screen.TRANSITION_TO_SEARCH;
                             }
                         } else if (widget is Vinyl.Widgets.ToolbarButton) {
@@ -2258,8 +2225,10 @@ namespace Vinyl {
                     library_menu_header_focus = 0;
                 }
                 if (library_menu_toolbar_focused) {
-                    foreach (var btn in library_menu_buttons) {
-                        btn.focused = false;
+                    if (library_menu_buttons != null) {
+                        foreach (var btn in library_menu_buttons) {
+                            btn.focused = false;
+                        }
                     }
                     if (back_button != null) {
                         back_button.focused = library_menu_header_focus == 0;
@@ -2268,8 +2237,10 @@ namespace Vinyl {
                         now_playing_button.focused = any_playing && library_menu_header_focus == 1;
                     }
                 } else {
-                    for (var i = 0; i < library_menu_buttons.size; i++) {
-                        library_menu_buttons.get (i).focused = (i == library_menu_focused_index);
+                    if (library_menu_buttons != null) {
+                        for (var i = 0; i < library_menu_buttons.size; i++) {
+                            library_menu_buttons.get (i).focused = (i == library_menu_focused_index);
+                        }
                     }
                     if (back_button != null) {
                         back_button.focused = false;
@@ -2286,8 +2257,10 @@ namespace Vinyl {
                         ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
                     }
                 }
-                foreach (var btn in library_menu_buttons) {
-                    btn.focused = false;
+                if (library_menu_buttons != null) {
+                    foreach (var btn in library_menu_buttons) {
+                        btn.focused = false;
+                    }
                 }
 
                 bool any_playing_cat = is_playing || is_radio_playing;
@@ -2312,8 +2285,11 @@ namespace Vinyl {
                         ((Vinyl.Widgets.ToolbarButton) widget).focused = false;
                     }
                 }
-                foreach (var btn in library_menu_buttons) {
-                    btn.focused = false;
+                if (library_menu_buttons != null) {
+                    foreach (var btn in library_menu_buttons) {
+                        btn.focused = false;
+                    }
+                }
                 }
 
                 if (!is_playing && library_header_focus == 2) {
@@ -2514,6 +2490,7 @@ namespace Vinyl {
         }
 
         private void build_now_playing_focusable_widgets () {
+            ensure_now_playing_buttons ();
             var c = now_playing_widget.player_controls;
             now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
             now_playing_focusable_widgets.add (back_button);               // 0
@@ -2568,6 +2545,117 @@ namespace Vinyl {
             }
         }
 
+        // ── Lazy initialization helpers ──────────────────────────────────
+
+        private bool library_menu_loaded = false;
+
+        private void ensure_library_menu () {
+            if (library_menu_loaded) return;
+            library_menu_loaded = true;
+            try {
+                library_menu_buttons = new Gee.ArrayList<Vinyl.Widgets.MenuButton> ();
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ALL_SONGS_ICON_PATH, "all_songs", _("All Songs"),
+                    0, 120, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.FAVORITES_ICON_PATH, "favorites", _("Favorites"),
+                    0, 240, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ARTISTS_ICON_PATH, "artists", _("Artists"),
+                    0, 360, SCREEN_WIDTH, 120
+                ));
+                library_menu_buttons.add (new Vinyl.Widgets.MenuButton (
+                    renderer, Constants.ALBUMS_ICON_PATH, "albums", _("Albums"),
+                    0, 480, SCREEN_WIDTH, 120
+                ));
+            } catch (Error e) {
+                warning ("Error loading library menu: %s", e.message);
+            }
+        }
+
+        private bool library_loaded = false;
+
+        private void ensure_library () {
+            if (library_loaded) return;
+            library_loaded = true;
+            if (library_db == null) {
+                library_db = new Vinyl.Library.LibraryDatabase ();
+                if (!library_db.open ()) {
+                    warning ("Library database could not be opened; continuing with an empty library.");
+                }
+            }
+            try {
+                sync_button = new Vinyl.Widgets.ToolbarButton (
+                    renderer,
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
+                    Constants.SYNC_TB_ICON_PATH,
+                    SCREEN_WIDTH - 190, 20, 80, 50
+                );
+            } catch (Error e) {
+                warning ("Error loading sync button: %s", e.message);
+            }
+            var tracks = library_db.load_tracks_for_ui ();
+            track_list = new Vinyl.Widgets.TrackList (
+                renderer,
+                tracks,
+                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+            );
+            music_scanner = new Vinyl.Library.MusicScanner (library_db);
+            trigger_sync_library ();
+        }
+
+        private bool radio_loaded = false;
+
+        private void ensure_radio () {
+            if (radio_loaded) return;
+            radio_loaded = true;
+            var stations = Vinyl.Radio.RadioStation.load_stations ();
+            radio_station_list = new Vinyl.Widgets.RadioStationList (
+                renderer,
+                stations,
+                0, 90, SCREEN_WIDTH, SCREEN_HEIGHT - 90
+            );
+            radio_player = new Vinyl.Radio.RadioPlayer ();
+            radio_player.state_changed.connect (on_radio_state_changed);
+        }
+
+        private bool search_loaded = false;
+
+        private void ensure_search () {
+            if (search_loaded) return;
+            search_loaded = true;
+            search_track_list = new Vinyl.Widgets.TrackList (
+                renderer,
+                new Gee.ArrayList<Vinyl.Library.Track> (),
+                0, 170, SCREEN_WIDTH, 220
+            );
+            search_keyboard = new Vinyl.Widgets.OnScreenKeyboard (0, 400, SCREEN_WIDTH, 320);
+            clear_all_icon = SDLImage.load_texture (renderer, Constants.CLEAR_ALL_ICON_PATH);
+        }
+
+        private bool now_playing_buttons_loaded = false;
+
+        private void ensure_now_playing_buttons () {
+            if (now_playing_buttons_loaded) return;
+            now_playing_buttons_loaded = true;
+            try {
+                playlist_button = new Vinyl.Widgets.ToolbarButton (
+                    renderer,
+                    Constants.TOOLBAR_BUTTON_BG_PATH,
+                    Constants.TOOLBAR_BUTTON_BG_PRESS_PATH,
+                    Constants.PLAYLIST_TB_ICON_PATH,
+                    SCREEN_WIDTH - 100, 20, 80, 50
+                );
+            } catch (Error e) {
+                warning ("Error loading playlist button: %s", e.message);
+            }
+        }
+
+        // ──────────────────────────────────────────────────────────────────
+
         private void trigger_sync_library () {
             if (is_syncing || music_scanner == null) return;
             is_syncing = true;
@@ -2587,6 +2675,7 @@ namespace Vinyl {
         }
 
         private void build_radio_now_playing_focusable_widgets () {
+            ensure_now_playing_buttons ();
             var c = radio_now_playing_widget.player_controls;
             radio_now_playing_focusable_widgets = new Gee.ArrayList<Object> ();
             radio_now_playing_focusable_widgets.add (back_button);
@@ -2685,6 +2774,7 @@ namespace Vinyl {
         }
 
         private void activate_library_category (string category_id) {
+            ensure_library ();
             library_category = category_id;
 
             if (category_id == "all_songs") {
@@ -2783,8 +2873,10 @@ namespace Vinyl {
             library_db = null;
             main_menu_buttons.clear ();
             main_menu_buttons = null;
-            library_menu_buttons.clear ();
-            library_menu_buttons = null;
+            if (library_menu_buttons != null) {
+                library_menu_buttons.clear ();
+                library_menu_buttons = null;
+            }
             category_list = null;
             focusable_widgets.clear ();
             focusable_widgets = null;

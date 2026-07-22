@@ -7,7 +7,7 @@ namespace Vinyl.Widgets {
     public class RadioStationRow : GLib.Object {
         public Vinyl.Radio.RadioStation station { get; private set; }
         private SDL.Video.Texture? flag_texture;
-        private SDL.Video.Texture? connecting_texture;
+        private static SDL.Video.Texture? shared_connecting_texture = null;
         public SDL.Video.Rect rect;
         public bool focused = false;
         public bool is_active = false;
@@ -28,9 +28,11 @@ namespace Vinyl.Widgets {
                 this.flag_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
             }
 
-            var conn_surface = SDLImage.load (Constants.CONNECTING_ICON_PATH);
-            if (conn_surface != null) {
-                this.connecting_texture = SDL.Video.Texture.create_from_surface (renderer, conn_surface);
+            if (shared_connecting_texture == null) {
+                var conn_surface = SDLImage.load (Constants.CONNECTING_ICON_PATH);
+                if (conn_surface != null) {
+                    shared_connecting_texture = SDL.Video.Texture.create_from_surface (renderer, conn_surface);
+                }
             }
         }
 
@@ -105,10 +107,10 @@ namespace Vinyl.Widgets {
         }
 
         private void render_spinner (SDL.Video.Renderer renderer) {
-            if (connecting_texture == null) return;
+            if (shared_connecting_texture == null) return;
 
             int tex_w, tex_h;
-            connecting_texture.query (null, null, out tex_w, out tex_h);
+            shared_connecting_texture.query (null, null, out tex_w, out tex_h);
 
             int dest_h = 28;
             int dest_w = (int)(dest_h * ((double) tex_w / tex_h));
@@ -117,7 +119,7 @@ namespace Vinyl.Widgets {
             var dest = SDL.Video.Rect () { x = dest_x, y = dest_y, w = dest_w, h = dest_h };
 
             double angle = (SDL.Timer.get_ticks () * 0.18) % 360.0;
-            renderer.copyex (connecting_texture, null, dest, angle, null,
+            renderer.copyex (shared_connecting_texture, null, dest, angle, null,
                 SDL.Video.RendererFlip.NONE);
         }
     }
