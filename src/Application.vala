@@ -217,8 +217,15 @@ namespace Vinyl {
 
             renderer = SDL.Video.Renderer.create (
                 window, -1,
-                SDL.Video.RendererFlags.SOFTWARE
+                SDL.Video.RendererFlags.ACCELERATED
             );
+            if (renderer == null) {
+                warning ("Accelerated renderer not available, falling back to software: %s", SDL.get_error ());
+                renderer = SDL.Video.Renderer.create (
+                    window, -1,
+                    SDL.Video.RendererFlags.SOFTWARE
+                );
+            }
             if (renderer == null) {
                 warning ("The renderer could not be created. Error: %s", SDL.get_error ());
                 return false;
