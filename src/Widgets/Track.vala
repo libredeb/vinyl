@@ -22,22 +22,18 @@ namespace Vinyl.Widgets {
             if (texture_loaded) return;
             texture_loaded = true;
 
-            SDL.Video.Surface? surface = null;
-
             if (track.album_art_path != null) {
-                surface = SDLImage.load (track.album_art_path);
+                var surface = SDLImage.load (track.album_art_path);
+                if (surface != null) {
+                    this.album_art_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+                }
             }
 
-            if (surface != null) {
-                this.album_art_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
-            } else {
-                if (default_cover_texture == null) {
-                    var def_surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
-                    if (def_surface != null) {
-                        default_cover_texture = SDL.Video.Texture.create_from_surface (renderer, def_surface);
-                    }
+            if (default_cover_texture == null) {
+                var def_surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
+                if (def_surface != null) {
+                    default_cover_texture = SDL.Video.Texture.create_from_surface (renderer, def_surface);
                 }
-                this.album_art_texture = default_cover_texture;
             }
 
             if (favorites_on_texture == null) {
@@ -63,8 +59,9 @@ namespace Vinyl.Widgets {
                 w = art_size,
                 h = art_size
             };
-            if (album_art_texture != null) {
-                renderer.copy (this.album_art_texture, null, art_dest_rect);
+            unowned SDL.Video.Texture? art = album_art_texture ?? default_cover_texture;
+            if (art != null) {
+                renderer.copy (art, null, art_dest_rect);
             }
 
             int fav_area = this.track.favorite ? 45 + 10 : 0;
