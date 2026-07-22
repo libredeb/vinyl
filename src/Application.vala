@@ -2290,7 +2290,6 @@ namespace Vinyl {
                         btn.focused = false;
                     }
                 }
-                }
 
                 if (!is_playing && library_header_focus == 2) {
                     library_header_focus = 1;
