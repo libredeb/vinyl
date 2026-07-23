@@ -6,7 +6,7 @@
 namespace Vinyl.Widgets {
     public class MenuButton : GLib.Object {
         private SDL.Video.Texture icon_texture;
-        private SDL.Video.Texture arrow_texture;
+        private static SDL.Video.Texture? shared_arrow_texture = null;
         private SDL.Video.Rect button_rect;
         public string id;
         public string text;
@@ -32,13 +32,15 @@ namespace Vinyl.Widgets {
                 throw new IOError.FAILED (SDL.get_error ());
             }
 
-            var arrow_surface = SDLImage.load (Constants.ARROW_RIGHT_ICON_PATH);
-            if (arrow_surface == null) {
-                throw new IOError.FAILED (SDL.get_error ());
-            }
-            this.arrow_texture = SDL.Video.Texture.create_from_surface (renderer, arrow_surface);
-            if (arrow_texture == null) {
-                throw new IOError.FAILED (SDL.get_error ());
+            if (shared_arrow_texture == null) {
+                var arrow_surface = SDLImage.load (Constants.ARROW_RIGHT_ICON_PATH);
+                if (arrow_surface == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
+                shared_arrow_texture = SDL.Video.Texture.create_from_surface (renderer, arrow_surface);
+                if (shared_arrow_texture == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
             }
         }
 
@@ -101,7 +103,7 @@ namespace Vinyl.Widgets {
                 w = 24,
                 h = 32
             };
-            rc = renderer.copy (this.arrow_texture, null, arrow_dest_rect);
+            rc = renderer.copy (shared_arrow_texture, null, arrow_dest_rect);
             if (rc != 0) {
                 warning ("MenuButton[%s] arrow copy failed: %s", this.id, SDL.get_error ());
             }

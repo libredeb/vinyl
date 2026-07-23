@@ -16,6 +16,7 @@ namespace Vinyl.Radio {
         public signal void album_art_changed (string? art_path);
 
         public RadioPlayer () {
+            Vinyl.ensure_gst ();
             playbin = Gst.ElementFactory.make ("playbin", "radio-playbin");
         }
 

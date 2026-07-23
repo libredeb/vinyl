@@ -8,30 +8,32 @@ namespace Vinyl.Widgets {
         public Vinyl.Library.Track track { get; private set; }
         private SDL.Video.Texture? album_art_texture;
         private static SDL.Video.Texture? favorites_on_texture = null;
+        private static SDL.Video.Texture? default_cover_texture = null;
         public SDL.Video.Rect rect;
         public bool focused = false;
+        private bool texture_loaded = false;
 
         public Track (SDL.Video.Renderer renderer, Vinyl.Library.Track track, int x, int y, int w, int h) {
             this.track = track;
             this.rect = { x, y, w, h };
-            SDL.Video.Surface? surface = null;
+        }
+
+        private void ensure_textures (SDL.Video.Renderer renderer) {
+            if (texture_loaded) return;
+            texture_loaded = true;
 
             if (track.album_art_path != null) {
-                surface = SDLImage.load (track.album_art_path);
-                if (surface == null) {
-                    warning ("Could not load album art: %s", SDL.get_error ());
+                var surface = SDLImage.load (track.album_art_path);
+                if (surface != null) {
+                    this.album_art_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
                 }
             }
 
-            if (surface == null) {
-                surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
-                if (surface == null) {
-                    warning ("Could not load default album art icon: %s", SDL.get_error ());
+            if (default_cover_texture == null) {
+                var def_surface = SDLImage.load (Constants.DEFAULT_COVER_ICON_PATH);
+                if (def_surface != null) {
+                    default_cover_texture = SDL.Video.Texture.create_from_surface (renderer, def_surface);
                 }
-            }
-
-            if (surface != null) {
-                this.album_art_texture = SDL.Video.Texture.create_from_surface (renderer, surface);
             }
 
             if (favorites_on_texture == null) {
@@ -40,6 +42,8 @@ namespace Vinyl.Widgets {
         }
 
         public void render (SDL.Video.Renderer renderer, SDLTTF.Font font, SDLTTF.Font small_font) {
+            ensure_textures (renderer);
+
             if (focused) {
                 renderer.set_draw_color (75, 45, 32, 255); // Highlight color #4b2d20
             } else {
@@ -55,8 +59,9 @@ namespace Vinyl.Widgets {
                 w = art_size,
                 h = art_size
             };
-            if (album_art_texture != null) {
-                renderer.copy (this.album_art_texture, null, art_dest_rect);
+            unowned SDL.Video.Texture? art = album_art_texture ?? default_cover_texture;
+            if (art != null) {
+                renderer.copy (art, null, art_dest_rect);
             }
 
             int fav_area = this.track.favorite ? 45 + 10 : 0;

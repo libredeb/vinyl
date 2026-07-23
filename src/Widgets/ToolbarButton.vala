@@ -5,8 +5,8 @@
 namespace Vinyl.Widgets {
     public class ToolbarButton : GLib.Object {
         private SDL.Video.Rect rect;
-        private SDL.Video.Texture bg_texture;
-        private SDL.Video.Texture bg_texture_press;
+        private static SDL.Video.Texture? shared_bg_texture = null;
+        private static SDL.Video.Texture? shared_bg_press_texture = null;
         private SDL.Video.Texture icon_texture;
         public bool focused = false;
 
@@ -20,27 +20,29 @@ namespace Vinyl.Widgets {
         ) throws IOError {
             this.rect = { x, y, w, h };
 
-            // Load background texture
-            var bg_surface = SDLImage.load (bg_path);
-            if (bg_surface == null) {
-                throw new IOError.FAILED (SDL.get_error ());
-            }
-            this.bg_texture = SDL.Video.Texture.create_from_surface (renderer, bg_surface);
-            if (this.bg_texture == null) {
-                throw new IOError.FAILED (SDL.get_error ());
-            }
-
-            // Load background texture for pressed state
-            var bg_press_surface = SDLImage.load (bg_press_path);
-            if (bg_press_surface == null) {
-                throw new IOError.FAILED (SDL.get_error ());
-            }
-            this.bg_texture_press = SDL.Video.Texture.create_from_surface (renderer, bg_press_surface);
-            if (this.bg_texture_press == null) {
-                throw new IOError.FAILED (SDL.get_error ());
+            if (shared_bg_texture == null) {
+                var bg_surface = SDLImage.load (bg_path);
+                if (bg_surface == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
+                shared_bg_texture = SDL.Video.Texture.create_from_surface (renderer, bg_surface);
+                if (shared_bg_texture == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
             }
 
-            // Load icon texture
+            if (shared_bg_press_texture == null) {
+                var bg_press_surface = SDLImage.load (bg_press_path);
+                if (bg_press_surface == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
+                shared_bg_press_texture = SDL.Video.Texture.create_from_surface (renderer, bg_press_surface);
+                if (shared_bg_press_texture == null) {
+                    throw new IOError.FAILED (SDL.get_error ());
+                }
+            }
+
+            // Load icon texture (unique per button)
             var icon_surface = SDLImage.load (icon_path);
             if (icon_surface == null) {
                 throw new IOError.FAILED (SDL.get_error ());
@@ -52,11 +54,10 @@ namespace Vinyl.Widgets {
         }
 
         public void render (SDL.Video.Renderer renderer) {
-            // Render background
             if (focused) {
-                renderer.copy (this.bg_texture_press, null, this.rect);
+                renderer.copy (shared_bg_press_texture, null, this.rect);
             } else {
-                renderer.copy (this.bg_texture, null, this.rect);
+                renderer.copy (shared_bg_texture, null, this.rect);
             }
 
             // Render icon centered

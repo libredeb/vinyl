@@ -347,6 +347,7 @@ namespace Vinyl.Library {
             }
 
             try {
+                Vinyl.ensure_gst ();
                 var discoverer = new Gst.PbUtils.Discoverer ((Gst.ClockTime) (5 * Gst.SECOND));
                 var info = discoverer.discover_uri ("file://" + file_path);
                 unowned Gst.TagList? tag_list = info.get_tags ();
