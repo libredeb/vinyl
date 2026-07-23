@@ -2666,6 +2666,7 @@ namespace Vinyl {
             if (is_syncing || music_scanner == null) return;
             is_syncing = true;
             new Thread<bool> ("library-sync", () => {
+                // Phase 1: fast scan with TagLib (no GStreamer) → show tracks immediately
                 var updated = music_scanner.sync_library_blocking ();
                 Idle.add (() => {
                     if (track_list != null && updated != null) {
@@ -2674,9 +2675,22 @@ namespace Vinyl {
                             player.sync_playlist (track_list.get_tracks ());
                         }
                     }
-                    is_syncing = false;
                     return false;
                 });
+
+                // Phase 2: extract album art (slow, GStreamer) → refresh UI with covers
+                bool art_updated = music_scanner.extract_missing_album_art ();
+                if (art_updated) {
+                    var final_tracks = library_db.load_tracks_for_ui ();
+                    Idle.add (() => {
+                        if (track_list != null) {
+                            track_list.reload_tracks (renderer, final_tracks);
+                        }
+                        return false;
+                    });
+                }
+
+                is_syncing = false;
                 return true;
             });
         }
