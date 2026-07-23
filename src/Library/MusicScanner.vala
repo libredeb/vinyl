@@ -66,7 +66,11 @@ namespace Vinyl.Library {
          * Loads tracks from the database immediately usable by the UI; reconciles with disk
          * (recursive, symlinks skipped) and persists changes in batched transactions.
          */
-        public async Gee.ArrayList<Track> sync_library () {
+        /**
+         * Synchronous library sync — designed to be called from a background Thread.
+         * Scans the music directory, reconciles with the DB, and returns the updated track list.
+         */
+        public Gee.ArrayList<Track> sync_library_blocking () {
             var hits = new Gee.ArrayList<DiskFileHit> ();
             string? music_root = resolve_music_directory ();
 
@@ -75,7 +79,7 @@ namespace Vinyl.Library {
                     warning ("Music root is a symbolic link, skipping scan: %s", music_root);
                 } else if (FileUtils.test (music_root, FileTest.IS_DIR)) {
                     var root = File.new_for_path (music_root);
-                    yield collect_audio_files_breadth_first (root, hits);
+                    collect_audio_files_sync (root, hits);
                 }
             } else {
                 warning ("No music directory found (XDG MUSIC, ~/Music).");
@@ -84,13 +88,6 @@ namespace Vinyl.Library {
             reconcile_disk_with_db (hits);
 
             return this.db.load_tracks_for_ui ();
-        }
-
-        private async void collect_audio_files_breadth_first (
-            File root,
-            Gee.ArrayList<DiskFileHit> hits
-        ) {
-            collect_audio_files_sync (root, hits);
         }
 
         private void collect_audio_files_sync (

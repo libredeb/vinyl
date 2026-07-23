@@ -2665,8 +2665,8 @@ namespace Vinyl {
         private void trigger_sync_library () {
             if (is_syncing || music_scanner == null) return;
             is_syncing = true;
-            music_scanner.sync_library.begin ((obj, res) => {
-                var updated = music_scanner.sync_library.end (res);
+            new Thread<bool> ("library-sync", () => {
+                var updated = music_scanner.sync_library_blocking ();
                 Idle.add (() => {
                     if (track_list != null && updated != null) {
                         track_list.reload_tracks (renderer, updated);
@@ -2677,6 +2677,7 @@ namespace Vinyl {
                     is_syncing = false;
                     return false;
                 });
+                return true;
             });
         }
 
