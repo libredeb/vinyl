@@ -20,6 +20,7 @@ namespace Vinyl.Library {
     public class LibraryDatabase : GLib.Object {
         private Sqlite.Database? db;
         private string db_path;
+        private Mutex db_mutex = Mutex ();
 
         public LibraryDatabase () {
             var data_dir = Path.build_filename (Environment.get_user_data_dir (), Config.PROJECT_NAME);
@@ -100,8 +101,10 @@ namespace Vinyl.Library {
         }
 
         public Gee.ArrayList<StoredTrackMeta> load_all_meta () {
+            db_mutex.lock ();
             var list = new Gee.ArrayList<StoredTrackMeta> ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return list;
             }
 
@@ -112,6 +115,7 @@ namespace Vinyl.Library {
                 FROM tracks
             """;
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return list;
             }
 
@@ -130,12 +134,15 @@ namespace Vinyl.Library {
                 row.cover_path = (c != null && c[0] != '\0') ? (!) c : null;
                 list.add (row);
             }
+            db_mutex.unlock ();
             return list;
         }
 
         public Gee.ArrayList<Track> load_tracks_for_ui () {
+            db_mutex.lock ();
             var list = new Gee.ArrayList<Track> ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return list;
             }
 
@@ -147,6 +154,7 @@ namespace Vinyl.Library {
                 ORDER BY artist COLLATE NOCASE, album COLLATE NOCASE, path COLLATE NOCASE
             """;
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return list;
             }
 
@@ -161,60 +169,47 @@ namespace Vinyl.Library {
                 bool fav = stmt.column_int (6) != 0;
                 list.add (new Track (path, title, artist, album, cover, id, fav));
             }
+            db_mutex.unlock ();
             return list;
         }
 
         public bool toggle_favorite (int64 track_id, bool favorite) {
+            db_mutex.lock ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return false;
             }
             Sqlite.Statement stmt;
             string tail;
             string q = "UPDATE tracks SET favorite = ? WHERE id = ?;";
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return false;
             }
             stmt.bind_int (1, favorite ? 1 : 0);
             stmt.bind_int64 (2, track_id);
-            return stmt.step () == Sqlite.DONE;
-        }
-
-        public bool transaction_begin () {
-            if (this.db == null) {
-                return false;
-            }
-            string err_msg;
-            return this.db.exec ("BEGIN IMMEDIATE;", null, out err_msg) == Sqlite.OK;
-        }
-
-        public bool transaction_commit () {
-            if (this.db == null) {
-                return false;
-            }
-            string err_msg;
-            return this.db.exec ("COMMIT;", null, out err_msg) == Sqlite.OK;
-        }
-
-        public bool transaction_rollback () {
-            if (this.db == null) {
-                return false;
-            }
-            string err_msg;
-            return this.db.exec ("ROLLBACK;", null, out err_msg) == Sqlite.OK;
+            bool ok = stmt.step () == Sqlite.DONE;
+            db_mutex.unlock ();
+            return ok;
         }
 
         public bool delete_by_id (int64 id) {
+            db_mutex.lock ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return false;
             }
             Sqlite.Statement stmt;
             string tail;
             string q = "DELETE FROM tracks WHERE id = ?;";
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return false;
             }
             stmt.bind_int64 (1, id);
-            return stmt.step () == Sqlite.DONE;
+            bool ok = stmt.step () == Sqlite.DONE;
+            db_mutex.unlock ();
+            return ok;
         }
 
         public bool update_after_move (
@@ -225,7 +220,9 @@ namespace Vinyl.Library {
             int64 mtime_sec,
             int64 size
         ) {
+            db_mutex.lock ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return false;
             }
             Sqlite.Statement stmt;
@@ -235,6 +232,7 @@ namespace Vinyl.Library {
                 WHERE id = ?;
             """;
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return false;
             }
             stmt.bind_text (1, new_path);
@@ -243,7 +241,9 @@ namespace Vinyl.Library {
             stmt.bind_int64 (4, mtime_sec);
             stmt.bind_int64 (5, size);
             stmt.bind_int64 (6, id);
-            return stmt.step () == Sqlite.DONE;
+            bool ok = stmt.step () == Sqlite.DONE;
+            db_mutex.unlock ();
+            return ok;
         }
 
         public bool update_metadata (
@@ -258,7 +258,9 @@ namespace Vinyl.Library {
             string album,
             string? cover_path
         ) {
+            db_mutex.lock ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return false;
             }
             Sqlite.Statement stmt;
@@ -278,6 +280,7 @@ namespace Vinyl.Library {
                 """;
             }
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return false;
             }
             stmt.bind_text (1, path);
@@ -294,7 +297,9 @@ namespace Vinyl.Library {
             } else {
                 stmt.bind_int64 (9, id);
             }
-            return stmt.step () == Sqlite.DONE;
+            bool ok = stmt.step () == Sqlite.DONE;
+            db_mutex.unlock ();
+            return ok;
         }
 
         public int64 insert_track (
@@ -308,7 +313,9 @@ namespace Vinyl.Library {
             string album,
             string? cover_path
         ) {
+            db_mutex.lock ();
             if (this.db == null) {
+                db_mutex.unlock ();
                 return -1;
             }
             Sqlite.Statement stmt;
@@ -318,6 +325,7 @@ namespace Vinyl.Library {
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
             """;
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                db_mutex.unlock ();
                 return -1;
             }
             stmt.bind_text (1, path);
@@ -334,9 +342,12 @@ namespace Vinyl.Library {
                 stmt.bind_null (9);
             }
             if (stmt.step () != Sqlite.DONE) {
+                db_mutex.unlock ();
                 return -1;
             }
-            return this.db.last_insert_rowid ();
+            int64 row_id = this.db.last_insert_rowid ();
+            db_mutex.unlock ();
+            return row_id;
         }
     }
 }

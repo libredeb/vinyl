@@ -2715,7 +2715,7 @@ namespace Vinyl {
             }
 
             string query = search_text.down ();
-            var all = get_all_tracks ();
+            var all = track_list.get_tracks ();
             var results = new Gee.ArrayList<Vinyl.Library.Track> ();
 
             foreach (var track in all) {
