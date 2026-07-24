@@ -26,6 +26,14 @@ namespace Vinyl.Widgets {
             this.rect = { x, y, w, h };
         }
 
+        public void release_textures () {
+            album_art_texture = null;
+            cached_title_texture = null;
+            cached_artist_texture = null;
+            texture_loaded = false;
+            cached_max_text_w = -1;
+        }
+
         private void ensure_textures (SDL.Video.Renderer renderer) {
             if (texture_loaded) return;
             texture_loaded = true;

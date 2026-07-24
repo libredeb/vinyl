@@ -123,6 +123,18 @@ namespace Vinyl.Widgets {
                 warning ("TrackList: focused_index(%d) >= size(%d), clamping", focused_index, size);
                 focused_index = size - 1;
             }
+
+            int buffer = visible_items;
+            int keep_start = int.max (0, top_index - buffer);
+            int keep_end = int.min (size, top_index + visible_items + buffer);
+
+            for (int i = 0; i < keep_start; i++) {
+                track_widgets.get (i).release_textures ();
+            }
+            for (int i = keep_end; i < size; i++) {
+                track_widgets.get (i).release_textures ();
+            }
+
             for (int i = top_index; i < top_index + visible_items && i < size; i++) {
                 var widget = track_widgets.get (i);
                 widget.focused = (i == focused_index) && this.is_focused;
