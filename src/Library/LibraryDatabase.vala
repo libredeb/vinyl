@@ -263,11 +263,20 @@ namespace Vinyl.Library {
             }
             Sqlite.Statement stmt;
             string tail;
-            string q = """
-                UPDATE tracks SET path = ?, dev = ?, inode = ?, mtime_sec = ?, size = ?,
-                    title = ?, artist = ?, album = ?, cover_path = ?
-                WHERE id = ?;
-            """;
+            string q;
+            if (cover_path != null) {
+                q = """
+                    UPDATE tracks SET path = ?, dev = ?, inode = ?, mtime_sec = ?, size = ?,
+                        title = ?, artist = ?, album = ?, cover_path = ?
+                    WHERE id = ?;
+                """;
+            } else {
+                q = """
+                    UPDATE tracks SET path = ?, dev = ?, inode = ?, mtime_sec = ?, size = ?,
+                        title = ?, artist = ?, album = ?
+                    WHERE id = ?;
+                """;
+            }
             if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
                 return false;
             }
@@ -281,10 +290,25 @@ namespace Vinyl.Library {
             stmt.bind_text (8, album);
             if (cover_path != null) {
                 stmt.bind_text (9, cover_path);
+                stmt.bind_int64 (10, id);
             } else {
-                stmt.bind_null (9);
+                stmt.bind_int64 (9, id);
             }
-            stmt.bind_int64 (10, id);
+            return stmt.step () == Sqlite.DONE;
+        }
+
+        public bool update_cover_path (int64 id, string cover_path) {
+            if (this.db == null) {
+                return false;
+            }
+            Sqlite.Statement stmt;
+            string tail;
+            string q = "UPDATE tracks SET cover_path = ? WHERE id = ?;";
+            if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
+                return false;
+            }
+            stmt.bind_text (1, cover_path);
+            stmt.bind_int64 (2, id);
             return stmt.step () == Sqlite.DONE;
         }
 

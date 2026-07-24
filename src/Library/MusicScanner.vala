@@ -90,6 +90,29 @@ namespace Vinyl.Library {
             return this.db.load_tracks_for_ui ();
         }
 
+        /**
+         * Extracts album art for tracks missing cover_path.
+         * Designed to run in background after the fast sync already populated the UI.
+         * Returns true if any track was updated.
+         */
+        public bool extract_missing_album_art () {
+            var tracks = this.db.load_tracks_for_ui ();
+            bool any_updated = false;
+
+            foreach (var track in tracks) {
+                if (track.album_art_path != null && track.album_art_path.length > 0) {
+                    continue;
+                }
+                string? art_path = save_album_art (track.file_path, track.album, track.artist);
+                if (art_path != null) {
+                    this.db.update_cover_path (track.db_row_id, art_path);
+                    any_updated = true;
+                }
+            }
+
+            return any_updated;
+        }
+
         private void collect_audio_files_sync (
             File root,
             Gee.ArrayList<DiskFileHit> hits
@@ -310,7 +333,7 @@ namespace Vinyl.Library {
                 t.title,
                 t.artist,
                 t.album,
-                t.album_art_path
+                null
             )) {
                 warning ("update_metadata failed for %s", hit.path);
             }
@@ -330,9 +353,8 @@ namespace Vinyl.Library {
             var title = tag.title != "" ? tag.title : Path.get_basename (file_path);
             var artist = tag.artist != "" ? tag.artist : _("Unknown Artist");
             var album = tag.album != "" ? tag.album : _("Unknown Album");
-            string? album_art_path = save_album_art (file_path, album, artist);
 
-            return new Track (file_path, title, artist, album, album_art_path, -1);
+            return new Track (file_path, title, artist, album, null, -1);
         }
 
         private string? save_album_art (string file_path, string album, string artist) {
