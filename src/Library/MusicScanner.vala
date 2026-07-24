@@ -31,6 +31,10 @@ namespace Vinyl.Library {
         private LibraryDatabase db;
         private string covers_cache_dir;
 
+        private Mutex queue_mutex = Mutex ();
+        private Gee.ArrayList<Track> pending_tracks = new Gee.ArrayList<Track> ();
+        private bool _sync_done = false;
+
         public MusicScanner (LibraryDatabase database) {
             this.db = database;
             this.covers_cache_dir = Path.build_filename (
@@ -49,6 +53,26 @@ namespace Vinyl.Library {
             }
         }
 
+        /**
+         * Returns newly processed tracks from the background sync.
+         * Call from the main thread each frame to progressively add tracks to the UI.
+         */
+        public Gee.ArrayList<Track> drain_pending_tracks () {
+            queue_mutex.lock ();
+            var result = (owned) pending_tracks;
+            pending_tracks = new Gee.ArrayList<Track> ();
+            queue_mutex.unlock ();
+            return result;
+        }
+
+        /** Returns true once the background sync has completed. */
+        public bool is_sync_done () {
+            queue_mutex.lock ();
+            bool done = _sync_done;
+            queue_mutex.unlock ();
+            return done;
+        }
+
         public static string? resolve_music_directory () {
             unowned string? xdg = Environment.get_user_special_dir (UserDirectory.MUSIC);
             if (xdg != null && xdg != "" && FileUtils.test (xdg, FileTest.IS_DIR)) {
@@ -63,14 +87,17 @@ namespace Vinyl.Library {
         }
 
         /**
-         * Loads tracks from the database immediately usable by the UI; reconciles with disk
-         * (recursive, symlinks skipped) and persists changes in batched transactions.
-         */
-        /**
          * Synchronous library sync — designed to be called from a background Thread.
-         * Scans the music directory, reconciles with the DB, and returns the updated track list.
+         * Scans the music directory, reconciles with the DB.
+         * Pushes each newly processed track to the pending queue so the main loop
+         * can display them progressively via drain_pending_tracks().
+         * Returns the final complete track list.
          */
         public Gee.ArrayList<Track> sync_library_blocking () {
+            queue_mutex.lock ();
+            _sync_done = false;
+            queue_mutex.unlock ();
+
             var hits = new Gee.ArrayList<DiskFileHit> ();
             string? music_root = resolve_music_directory ();
 
@@ -87,30 +114,13 @@ namespace Vinyl.Library {
 
             reconcile_disk_with_db (hits);
 
-            return this.db.load_tracks_for_ui ();
-        }
+            var final_list = this.db.load_tracks_for_ui ();
 
-        /**
-         * Extracts album art for tracks missing cover_path.
-         * Designed to run in background after the fast sync already populated the UI.
-         * Returns true if any track was updated.
-         */
-        public bool extract_missing_album_art () {
-            var tracks = this.db.load_tracks_for_ui ();
-            bool any_updated = false;
+            queue_mutex.lock ();
+            _sync_done = true;
+            queue_mutex.unlock ();
 
-            foreach (var track in tracks) {
-                if (track.album_art_path != null && track.album_art_path.length > 0) {
-                    continue;
-                }
-                string? art_path = save_album_art (track.file_path, track.album, track.artist);
-                if (art_path != null) {
-                    this.db.update_cover_path (track.db_row_id, art_path);
-                    any_updated = true;
-                }
-            }
-
-            return any_updated;
+            return final_list;
         }
 
         private void collect_audio_files_sync (
@@ -227,26 +237,16 @@ namespace Vinyl.Library {
                 seen_paths.add (h.path);
             }
 
-            if (!this.db.transaction_begin ()) {
-                warning ("library transaction BEGIN failed");
-                return;
-            }
-
             foreach (var hit in hits) {
                 apply_hit (hit, seen_paths, by_path, by_inode);
             }
 
-            /* After moves, paths in DB differ from the initial meta snapshot; re-read rows. */
+            /* Remove orphaned rows (files no longer on disk). */
             var after_rows = this.db.load_all_meta ();
             foreach (var row in after_rows) {
                 if (!seen_paths.contains (row.path)) {
                     this.db.delete_by_id (row.id);
                 }
-            }
-
-            if (!this.db.transaction_commit ()) {
-                warning ("library transaction COMMIT failed");
-                this.db.transaction_rollback ();
             }
         }
 
@@ -315,7 +315,13 @@ namespace Vinyl.Library {
             );
             if (id < 0) {
                 warning ("insert_track failed for %s", hit.path);
+                return;
             }
+            var inserted = new Track (t.file_path, t.title, t.artist, t.album, t.album_art_path, id);
+            inserted.favorite = false;
+            queue_mutex.lock ();
+            pending_tracks.add (inserted);
+            queue_mutex.unlock ();
         }
 
         private void read_tags_and_update (DiskFileHit hit, int64 row_id) {
@@ -333,10 +339,15 @@ namespace Vinyl.Library {
                 t.title,
                 t.artist,
                 t.album,
-                null
+                t.album_art_path
             )) {
                 warning ("update_metadata failed for %s", hit.path);
+                return;
             }
+            var updated = new Track (t.file_path, t.title, t.artist, t.album, t.album_art_path, row_id);
+            queue_mutex.lock ();
+            pending_tracks.add (updated);
+            queue_mutex.unlock ();
         }
 
         private Track? build_track_from_file (string file_path) {
@@ -353,8 +364,9 @@ namespace Vinyl.Library {
             var title = tag.title != "" ? tag.title : Path.get_basename (file_path);
             var artist = tag.artist != "" ? tag.artist : _("Unknown Artist");
             var album = tag.album != "" ? tag.album : _("Unknown Album");
+            string? album_art_path = save_album_art (file_path, album, artist);
 
-            return new Track (file_path, title, artist, album, null, -1);
+            return new Track (file_path, title, artist, album, album_art_path, -1);
         }
 
         private string? save_album_art (string file_path, string album, string artist) {

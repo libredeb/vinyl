@@ -86,6 +86,11 @@ namespace Vinyl.Widgets {
             }
         }
 
+        /** Appends a single track to the list without rebuilding everything. */
+        public void append_track (SDL.Video.Renderer renderer, Vinyl.Library.Track track) {
+            track_widgets.add (new Track (renderer, track, rect.x, 0, (int) rect.w, item_height));
+        }
+
         public void scroll_up () {
             if (focused_index > 0) {
                 focused_index--;

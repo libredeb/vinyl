@@ -140,6 +140,7 @@ namespace Vinyl {
                 last_frame_time = frame_start;
 
                 GLib.MainContext.default ().iteration (false);
+                poll_pending_tracks ();
                 if (player != null) {
                     player.handle_messages ();
                 }
@@ -2666,33 +2667,27 @@ namespace Vinyl {
             if (is_syncing || music_scanner == null) return;
             is_syncing = true;
             new Thread<bool> ("library-sync", () => {
-                // Phase 1: fast scan with TagLib (no GStreamer) → show tracks immediately
-                var updated = music_scanner.sync_library_blocking ();
-                Idle.add (() => {
-                    if (track_list != null && updated != null) {
-                        track_list.reload_tracks (renderer, updated);
-                        if (player != null) {
-                            player.sync_playlist (track_list.get_tracks ());
-                        }
-                    }
-                    return false;
-                });
-
-                // Phase 2: extract album art (slow, GStreamer) → refresh UI with covers
-                bool art_updated = music_scanner.extract_missing_album_art ();
-                if (art_updated) {
-                    var final_tracks = library_db.load_tracks_for_ui ();
-                    Idle.add (() => {
-                        if (track_list != null) {
-                            track_list.reload_tracks (renderer, final_tracks);
-                        }
-                        return false;
-                    });
-                }
-
-                is_syncing = false;
+                music_scanner.sync_library_blocking ();
                 return true;
             });
+        }
+
+        private void poll_pending_tracks () {
+            if (music_scanner == null) return;
+
+            var new_tracks = music_scanner.drain_pending_tracks ();
+            if (new_tracks.size > 0 && track_list != null) {
+                foreach (var track in new_tracks) {
+                    track_list.append_track (renderer, track);
+                }
+                if (player != null) {
+                    player.sync_playlist (track_list.get_tracks ());
+                }
+            }
+
+            if (is_syncing && music_scanner.is_sync_done ()) {
+                is_syncing = false;
+            }
         }
 
         private void build_radio_now_playing_focusable_widgets () {

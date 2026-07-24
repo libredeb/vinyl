@@ -297,21 +297,6 @@ namespace Vinyl.Library {
             return stmt.step () == Sqlite.DONE;
         }
 
-        public bool update_cover_path (int64 id, string cover_path) {
-            if (this.db == null) {
-                return false;
-            }
-            Sqlite.Statement stmt;
-            string tail;
-            string q = "UPDATE tracks SET cover_path = ? WHERE id = ?;";
-            if (this.db.prepare_v2 (q, q.length, out stmt, out tail) != Sqlite.OK) {
-                return false;
-            }
-            stmt.bind_text (1, cover_path);
-            stmt.bind_int64 (2, id);
-            return stmt.step () == Sqlite.DONE;
-        }
-
         public int64 insert_track (
             string path,
             int64 dev,
