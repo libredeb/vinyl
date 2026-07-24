@@ -84,7 +84,9 @@ namespace Vinyl.Widgets {
         ) {
             string display_text = text;
             var surface = font.render (display_text, color);
+            if (surface == null) return;
             var texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+            if (texture == null) return;
             int tw, th;
             texture.query (null, null, out tw, out th);
 
@@ -92,9 +94,11 @@ namespace Vinyl.Widgets {
                 string truncated = text;
                 while (truncated.length > 1) {
                     truncated = truncated.substring (0, truncated.length - 1);
-                    display_text = truncated + "…";
+                    display_text = truncated + "\xe2\x80\xa6";
                     surface = font.render (display_text, color);
+                    if (surface == null) break;
                     texture = SDL.Video.Texture.create_from_surface (renderer, surface);
+                    if (texture == null) break;
                     texture.query (null, null, out tw, out th);
                     if (tw <= max_width) {
                         break;

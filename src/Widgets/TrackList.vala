@@ -101,16 +101,29 @@ namespace Vinyl.Widgets {
         }
 
         public void scroll_down () {
-            if (focused_index < track_widgets.size - 1) {
+            int size = track_widgets.size;
+            if (size == 0) return;
+            if (focused_index < size - 1) {
                 focused_index++;
                 if (focused_index >= top_index + visible_items) {
                     top_index = focused_index - visible_items + 1;
                 }
             }
+            debug ("TrackList.scroll_down: focused=%d top=%d size=%d visible=%d",
+                   focused_index, top_index, size, visible_items);
         }
 
         public void render (SDL.Video.Renderer renderer, SDLTTF.Font font, SDLTTF.Font small_font) {
-            for (int i = top_index; i < top_index + visible_items && i < track_widgets.size; i++) {
+            int size = track_widgets.size;
+            if (top_index >= size && size > 0) {
+                warning ("TrackList: top_index(%d) >= size(%d), resetting", top_index, size);
+                top_index = int.max (0, size - visible_items);
+            }
+            if (focused_index >= size && size > 0) {
+                warning ("TrackList: focused_index(%d) >= size(%d), clamping", focused_index, size);
+                focused_index = size - 1;
+            }
+            for (int i = top_index; i < top_index + visible_items && i < size; i++) {
                 var widget = track_widgets.get (i);
                 widget.focused = (i == focused_index) && this.is_focused;
                 widget.rect.y = this.rect.y + ((i - top_index) * item_height);
