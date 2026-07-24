@@ -124,7 +124,7 @@ namespace Vinyl.Widgets {
                 focused_index = size - 1;
             }
 
-            int buffer = visible_items;
+            int buffer = 1;
             int keep_start = int.max (0, top_index - buffer);
             int keep_end = int.min (size, top_index + visible_items + buffer);
 
